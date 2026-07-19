@@ -1,0 +1,37 @@
+import api from '@/lib/axios'
+import type { ApiResponse, PaginatedResponse, Attendance } from '@/types/api'
+
+export const attendanceService = {
+  getToday: async () => {
+    const { data } = await api.get<ApiResponse<Attendance | null>>('/attendances/today')
+    return data.data
+  },
+  checkIn: async (payload: { latitude: number; longitude: number; location_id?: number }) => {
+    const { data } = await api.post<ApiResponse<Attendance>>('/attendances/check-in', payload)
+    return data.data
+  },
+  checkOut: async () => {
+    const { data } = await api.post<ApiResponse<Attendance>>('/attendances/check-out')
+    return data.data
+  },
+  getAll: async (params?: {
+    page?: number
+    per_page?: number
+    date?: string
+    department_id?: number
+    status?: string
+    search?: string
+  }) => {
+    const { data } = await api.get<PaginatedResponse<Attendance>>('/attendances', { params })
+    return data
+  },
+  getHistory: async (params?: {
+    page?: number
+    per_page?: number
+    start_date?: string
+    end_date?: string
+  }) => {
+    const { data } = await api.get<PaginatedResponse<Attendance>>('/attendances/history', { params })
+    return data
+  },
+}
