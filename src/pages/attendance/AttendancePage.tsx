@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -28,10 +28,12 @@ function getStatusBadge(status?: string) {
   }
 }
 
-type Step = 'idle' | 'camera' | 'face' | 'location' | 'submitting' | 'done'
+type Step = 'idle' | 'face' | 'submitting' | 'done'
 
 const CHECKIN_DEADLINE_HOUR = 9
 const CHECKOUT_DEADLINE_HOUR = 20
+const AUTO_CAPTURE_SCORE = 0.75
+const CAPTURE_STABLE_MS = 1500
 
 export default function AttendancePage() {
   const queryClient = useQueryClient()
@@ -44,6 +46,12 @@ export default function AttendancePage() {
   const [geoResult, setGeoResult] = useState<{ inside: boolean; distance: number | null; locationName: string | null } | null>(null)
   const [actionType, setActionType] = useState<'check_in' | 'check_out'>('check_in')
   const [now, setNow] = useState(new Date())
+  const [cameraError, setCameraError] = useState<string | null>(null)
+  const [countdown, setCountdown] = useState<number | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
+
+  const faceDetectedSinceRef = useRef<number | null>(null)
+  const autoCaptureTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const face = useFaceRecognition()
 
@@ -62,7 +70,7 @@ export default function AttendancePage() {
       attendanceService.checkIn(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance-today'] })
-      toast.success('Berhasil check-in')
+      toast.success('Check-in berhasil!')
       setStep('done')
     },
     onError: (error: any) => {
@@ -75,7 +83,7 @@ export default function AttendancePage() {
     mutationFn: attendanceService.checkOut,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance-today'] })
-      toast.success('Berhasil check-out')
+      toast.success('Check-out berhasil!')
       setStep('done')
     },
     onError: (error: any) => {
@@ -88,15 +96,9 @@ export default function AttendancePage() {
     loadModels().then((ok) => setModelsReady(ok))
   }, [])
 
-  useEffect(() => {
-    if (face.isReady && step === 'camera') {
-      face.startDetection()
-      setStep('face')
-    }
-  }, [face.isReady, step])
-
   const processGeo = useCallback(async (lat: number, lng: number) => {
     setStep('submitting')
+    setIsProcessing(true)
     try {
       const result = await geolocationService.validate(lat, lng)
       setGeoResult({
@@ -112,49 +114,33 @@ export default function AttendancePage() {
     } else {
       checkOutMutation.mutate()
     }
+    setIsProcessing(false)
   }, [actionType, checkInMutation, checkOutMutation])
 
-  async function handleStartCheckIn() {
-    if (!employeeId) {
-      toast.error('Akun ini belum terkait data karyawan. Hubungi admin.', { duration: 5000 })
-      return
-    }
-    setActionType('check_in')
-    setFaceResult(null)
-    setGeoResult(null)
-    setStep('camera')
-    await face.startCamera()
-  }
-
-  async function handleStartCheckOut() {
-    setActionType('check_out')
-    setFaceResult(null)
-    setGeoResult(null)
-    setStep('camera')
-    await face.startCamera()
-  }
-
-  async function handleCaptureFace() {
-    if (!employeeId) return
+  const doCaptureAndVerify = useCallback(async () => {
+    if (isProcessing) return
+    setIsProcessing(true)
     face.stopDetection()
-    const result = await face.detectFace()
+
+    toast.info('Mengambil gambar wajah...')
+    const result = await face.captureFace()
     if (!result.detected || !result.descriptor) {
       toast.error('Wajah tidak terdeteksi. Coba lagi.')
       face.startDetection()
+      setIsProcessing(false)
       return
     }
 
-    setStep('submitting')
     toast.info('Memverifikasi wajah...')
-
     try {
-      const verifyResult = await faceService.verify(employeeId, descriptorToArray(result.descriptor))
+      const verifyResult = await faceService.verify(employeeId!, descriptorToArray(result.descriptor))
       setFaceResult({ matched: verifyResult.matched, score: verifyResult.score })
 
       if (!verifyResult.matched) {
         toast.error(`Wajah tidak cocok (skor: ${verifyResult.score}%)`)
         face.stopCamera()
         setStep('idle')
+        setIsProcessing(false)
         return
       }
 
@@ -163,22 +149,93 @@ export default function AttendancePage() {
       toast.error(err.response?.data?.message || 'Gagal memverifikasi wajah')
       face.stopCamera()
       setStep('idle')
+      setIsProcessing(false)
       return
     }
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        await processGeo(pos.coords.latitude, pos.coords.longitude)
         face.stopCamera()
+        await processGeo(pos.coords.latitude, pos.coords.longitude)
       },
       () => {
         toast.error('Gagal mendapatkan lokasi. GPS aktif?')
         face.stopCamera()
         setStep('idle')
+        setIsProcessing(false)
       },
       { enableHighAccuracy: true, timeout: 10000 }
     )
+  }, [employeeId, face, processGeo, isProcessing])
+
+  async function startAttendance(type: 'check_in' | 'check_out') {
+    if (type === 'check_in' && !employeeId) {
+      toast.error('Akun ini belum terkait data karyawan. Hubungi admin.', { duration: 5000 })
+      return
+    }
+    setActionType(type)
+    setFaceResult(null)
+    setGeoResult(null)
+    setCameraError(null)
+    setCountdown(null)
+    faceDetectedSinceRef.current = null
+    setStep('face')
+
+    const ok = await face.startCamera()
+    if (!ok) {
+      toast.error('Gagal membuka kamera. Pastikan izin kamera diberikan.')
+      setCameraError('Kamera tidak tersedia. Berikan izin kamera di browser.')
+      setStep('idle')
+      return
+    }
   }
+
+  useEffect(() => {
+    if (step === 'face' && face.isReady && !isProcessing) {
+      face.startDetection()
+    }
+    return () => {
+      if (step !== 'face') face.stopDetection()
+    }
+  }, [step, face.isReady, face, isProcessing])
+
+  // Auto-capture: when face is detected with high score for long enough, auto-capture
+  useEffect(() => {
+    if (step !== 'face' || isProcessing) return
+
+    if (face.faceDetected && face.faceScore >= AUTO_CAPTURE_SCORE) {
+      if (!faceDetectedSinceRef.current) {
+        faceDetectedSinceRef.current = Date.now()
+        setCountdown(Math.ceil(CAPTURE_STABLE_MS / 1000))
+      }
+
+      const elapsed = Date.now() - faceDetectedSinceRef.current
+      const remaining = Math.max(0, CAPTURE_STABLE_MS - elapsed)
+      setCountdown(Math.ceil(remaining / 1000))
+
+      if (remaining <= 0) {
+        faceDetectedSinceRef.current = null
+        setCountdown(null)
+        doCaptureAndVerify()
+        return
+      }
+
+      autoCaptureTimerRef.current = setTimeout(() => {
+        const newRemaining = Math.max(0, CAPTURE_STABLE_MS - (Date.now() - (faceDetectedSinceRef.current || Date.now())))
+        setCountdown(Math.ceil(newRemaining / 1000))
+      }, 100)
+    } else {
+      faceDetectedSinceRef.current = null
+      setCountdown(null)
+      if (autoCaptureTimerRef.current) {
+        clearTimeout(autoCaptureTimerRef.current)
+      }
+    }
+
+    return () => {
+      if (autoCaptureTimerRef.current) clearTimeout(autoCaptureTimerRef.current)
+    }
+  }, [face.faceDetected, face.faceScore, step, isProcessing, doCaptureAndVerify])
 
   function handleCancel() {
     face.stopCamera()
@@ -186,6 +243,10 @@ export default function AttendancePage() {
     setStep('idle')
     setFaceResult(null)
     setGeoResult(null)
+    setCameraError(null)
+    setCountdown(null)
+    faceDetectedSinceRef.current = null
+    if (autoCaptureTimerRef.current) clearTimeout(autoCaptureTimerRef.current)
   }
 
   const isCheckedIn = todayAttendance && todayAttendance.check_in_time
@@ -201,7 +262,6 @@ export default function AttendancePage() {
   const isPastCheckinDeadline = currentHour >= CHECKIN_DEADLINE_HOUR && !isCheckedIn
   const isPastCheckoutDeadline = currentHour >= CHECKOUT_DEADLINE_HOUR && isCheckedIn && !isCheckedOut
 
-  // countdown to checkout deadline
   const checkoutDeadline = new Date(now)
   checkoutDeadline.setHours(CHECKOUT_DEADLINE_HOUR, 0, 0, 0)
   const msUntilCheckout = checkoutDeadline.getTime() - now.getTime()
@@ -223,7 +283,6 @@ export default function AttendancePage() {
 
   return (
     <div className="max-w-[1400px] mx-auto space-y-6">
-      {/* Header with clock */}
       <div className="gradient-primary rounded-2xl px-8 py-6 text-center shadow-lg shadow-sky-500/15">
         <h1 className="text-3xl font-semibold tracking-tight text-white">Absensi</h1>
         <p className="text-sm text-white/60 mt-1">Check-in dan check-out harian</p>
@@ -246,12 +305,11 @@ export default function AttendancePage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main action */}
         <Card className="lg:col-span-2 !p-0 overflow-hidden">
           <div className="p-8 sm:p-10 text-center">
+            {/* IDLE */}
             {step === 'idle' && (
               <>
-                {/* Status indicator */}
                 <div className="mb-6">
                   {isCheckedIn ? (
                     <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-emerald-50 ring-1 ring-emerald-500/10">
@@ -292,7 +350,6 @@ export default function AttendancePage() {
                   }
                 </p>
 
-                {/* Late warning */}
                 {isPastCheckinDeadline && !isCheckedIn && (
                   <div className="bg-amber-50 border border-amber-200/60 rounded-lg p-3 mb-6 max-w-sm mx-auto text-left">
                     <div className="flex items-start gap-2">
@@ -305,7 +362,6 @@ export default function AttendancePage() {
                   </div>
                 )}
 
-                {/* Checkout deadline warning */}
                 {isPastCheckoutDeadline && (
                   <div className="bg-red-50 border border-red-200/60 rounded-lg p-3 mb-6 max-w-sm mx-auto text-left">
                     <div className="flex items-start gap-2">
@@ -318,7 +374,6 @@ export default function AttendancePage() {
                   </div>
                 )}
 
-                {/* Check-in info */}
                 {isCheckedIn && todayAttendance && (
                   <div className="flex items-center justify-center gap-3 mb-6">
                     <div className="flex items-center gap-1.5 text-sm text-gray-500">
@@ -329,26 +384,34 @@ export default function AttendancePage() {
                   </div>
                 )}
 
-                {/* Buttons */}
+                {cameraError && (
+                  <div className="bg-red-50 border border-red-200/60 rounded-lg p-3 mb-6 max-w-sm mx-auto text-left">
+                    <div className="flex items-start gap-2">
+                      <CameraOff size={15} className="text-red-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-red-800">{cameraError}</p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-3">
                   {!isCheckedIn && modelsReady && (
-                    <Button size="lg" onClick={handleStartCheckIn} className="w-full sm:w-auto min-w-[200px]">
+                    <Button size="lg" onClick={() => startAttendance('check_in')} className="w-full sm:w-auto min-w-[200px]">
                       <Fingerprint size={18} className="mr-2" /> Check In
                     </Button>
                   )}
                   {!isCheckedIn && !modelsReady && (
                     <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
-                      <Loader2 size={14} className="animate-spin" /> Memuat model...
+                      <Loader2 size={14} className="animate-spin" /> Memuat model wajah...
                     </div>
                   )}
                   {isCheckedIn && !isCheckedOut && modelsReady && (
-                    <Button size="lg" variant="danger" onClick={handleStartCheckOut} className="w-full sm:w-auto min-w-[200px]">
+                    <Button size="lg" variant="danger" onClick={() => startAttendance('check_out')} className="w-full sm:w-auto min-w-[200px]">
                       <LogOut size={18} className="mr-2" /> Check Out
                     </Button>
                   )}
                   {isCheckedIn && !isCheckedOut && !modelsReady && (
                     <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
-                      <Loader2 size={14} className="animate-spin" /> Memuat model...
+                      <Loader2 size={14} className="animate-spin" /> Memuat model wajah...
                     </div>
                   )}
                   {isCheckedOut && (
@@ -368,46 +431,86 @@ export default function AttendancePage() {
               </>
             )}
 
-            {/* Face verification */}
+            {/* FACE CAMERA + AUTO CAPTURE */}
             {step === 'face' && (
               <>
-                <div className="mb-5">
+                <div className="mb-4">
                   <h2 className="text-lg font-semibold text-gray-900 mb-1">
-                    {actionType === 'check_in' ? 'Verifikasi Wajah' : 'Verifikasi Wajah'}
+                    {actionType === 'check_in' ? 'Check-In' : 'Check-Out'} — Verifikasi Wajah
                   </h2>
-                  <p className="text-sm text-gray-500">Pastikan wajah Anda terlihat jelas di kamera</p>
+                  <p className="text-sm text-gray-500">
+                    {isProcessing
+                      ? 'Memproses verifikasi...'
+                      : countdown !== null
+                        ? 'Wajah terdeteksi! Tunggu sebentar...'
+                        : 'Arahkan wajah ke kamera'
+                    }
+                  </p>
                 </div>
-                <div className="relative inline-block rounded-xl overflow-hidden border border-gray-200 mb-5 w-full max-w-sm">
+
+                <div className="relative inline-block rounded-xl overflow-hidden border-2 border-sky-300 mb-5 w-full max-w-sm shadow-lg shadow-sky-500/10">
                   <video ref={face.videoRef} autoPlay muted playsInline className="w-full aspect-[4/3] object-cover" />
                   <canvas ref={face.canvasRef} className="absolute inset-0 w-full h-full" />
-                  {face.faceDetected ? (
+
+                  {/* Status badge */}
+                  {isProcessing ? (
+                    <div className="absolute top-3 right-3 bg-sky-600 text-white px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5">
+                      <Loader2 size={12} className="animate-spin" /> Proses
+                    </div>
+                  ) : face.faceDetected && face.faceScore >= AUTO_CAPTURE_SCORE ? (
                     <div className="absolute top-3 right-3 bg-emerald-600 text-white px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5">
                       <CheckCircle2 size={12} /> Terdeteksi
                     </div>
-                  ) : face.isDetecting ? (
+                  ) : face.isReady ? (
                     <div className="absolute top-3 right-3 bg-amber-500 text-white px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5">
                       <CircleDot size={12} /> Cari Wajah
                     </div>
-                  ) : null}
+                  ) : (
+                    <div className="absolute top-3 right-3 bg-gray-600 text-white px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5">
+                      <Camera size={12} /> Memuat...
+                    </div>
+                  )}
+
+                  {/* Countdown overlay */}
+                  {countdown !== null && countdown > 0 && !isProcessing && (
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2">
+                      <div className="bg-black/60 text-white px-3 py-1.5 rounded-full text-sm font-mono font-bold backdrop-blur-sm">
+                        {countdown}s
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Scanning line effect when searching */}
+                  {face.isReady && !face.faceDetected && !isProcessing && (
+                    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                      <div className="absolute left-0 right-0 h-0.5 bg-sky-400/60 animate-[scan_2s_ease-in-out_infinite]" />
+                    </div>
+                  )}
                 </div>
+
                 <div className="flex flex-col sm:flex-row justify-center gap-3">
-                  <Button onClick={handleCaptureFace} disabled={!face.faceDetected} loading={false} className="w-full sm:w-auto min-w-[180px]">
-                    <Camera size={15} className="mr-2" /> Verifikasi
+                  <Button
+                    onClick={doCaptureAndVerify}
+                    disabled={isProcessing || !face.faceDetected}
+                    loading={isProcessing}
+                    className="w-full sm:w-auto min-w-[180px]"
+                  >
+                    <Camera size={15} className="mr-2" /> Ambil & Verifikasi
                   </Button>
-                  <Button variant="outline" onClick={handleCancel} className="w-full sm:w-auto">
+                  <Button variant="outline" onClick={handleCancel} disabled={isProcessing} className="w-full sm:w-auto">
                     <CameraOff size={15} className="mr-2" /> Batal
                   </Button>
                 </div>
               </>
             )}
 
-            {/* Submitting */}
+            {/* SUBMITTING */}
             {step === 'submitting' && (
               <>
                 <div className="mb-5">
                   <Loader2 size={40} className="mx-auto text-sky-500 animate-spin" />
                 </div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-3">Memproses...</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-3">Memproses Absensi...</h2>
                 <div className="flex flex-wrap justify-center gap-2">
                   {faceResult && (
                     faceResult.matched
@@ -423,7 +526,7 @@ export default function AttendancePage() {
               </>
             )}
 
-            {/* Done */}
+            {/* DONE */}
             {step === 'done' && (
               <>
                 <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-emerald-50 ring-1 ring-emerald-500/10 mb-5">
@@ -446,7 +549,6 @@ export default function AttendancePage() {
 
         {/* Sidebar */}
         <div className="space-y-4">
-          {/* Countdown */}
           {isCheckedIn && !isCheckedOut && (
             <div className={`rounded-xl p-5 text-white ${
               msUntilCheckout <= 0

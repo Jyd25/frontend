@@ -22,13 +22,13 @@ export async function loadModels() {
 export function useFaceRecognition() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
   const [isReady, setIsReady] = useState(false)
-  const [isDetecting, setIsDetecting] = useState(false)
   const [faceDetected, setFaceDetected] = useState(false)
-  const [descriptor, setDescriptor] = useState<Float32Array | null>(null)
-  const detectionInterval = useRef<ReturnType<typeof setInterval>>(undefined)
+  const [faceScore, setFaceScore] = useState(0)
+  const detectionFrameRef = useRef<number>(0)
 
-  const startCamera = useCallback(async () => {
+  const startCamera = useCallback(async (): Promise<boolean> => {
     try {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -38,81 +38,116 @@ export function useFaceRecognition() {
           facingMode: 'user',
         },
       })
+      streamRef.current = stream
       if (videoRef.current) {
         videoRef.current.srcObject = stream
         await videoRef.current.play()
         setIsReady(true)
+        return true
       }
+      return false
     } catch {
       return false
     }
-    return true
   }, [])
 
   const stopCamera = useCallback(() => {
-    if (videoRef.current?.srcObject) {
-      const tracks = (videoRef.current.srcObject as MediaStream).getTracks()
-      tracks.forEach((t) => t.stop())
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop())
+      streamRef.current = null
+    }
+    if (videoRef.current) {
       videoRef.current.srcObject = null
     }
-    if (detectionInterval.current) clearInterval(detectionInterval.current)
+    if (detectionFrameRef.current) {
+      cancelAnimationFrame(detectionFrameRef.current)
+    }
     setIsReady(false)
-    setIsDetecting(false)
     setFaceDetected(false)
-    setDescriptor(null)
+    setFaceScore(0)
   }, [])
 
-  const detectFace = useCallback(async (): Promise<{ detected: boolean; descriptor?: Float32Array; score?: number }> => {
-    if (!videoRef.current || !isReady) return { detected: false }
+  const startDetection = useCallback(() => {
+    let lastDetectionTime = 0
+    const DETECT_INTERVAL = 300
 
+    const detect = async () => {
+      const video = videoRef.current
+      if (!video || video.readyState !== 4) {
+        detectionFrameRef.current = requestAnimationFrame(detect)
+        return
+      }
+
+      const now = Date.now()
+      if (now - lastDetectionTime < DETECT_INTERVAL) {
+        detectionFrameRef.current = requestAnimationFrame(detect)
+        return
+      }
+      lastDetectionTime = now
+
+      try {
+        const detection = await faceapi
+          .detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.4 }))
+          .withFaceLandmarks()
+          .withFaceDescriptor()
+
+        if (canvasRef.current) {
+          const canvas = canvasRef.current
+          canvas.width = video.videoWidth
+          canvas.height = video.videoHeight
+          const ctx = canvas.getContext('2d')
+          if (ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+            if (detection) {
+              const dims = faceapi.matchDimensions(canvas, { width: video.videoWidth, height: video.videoHeight }, true)
+              const resized = faceapi.resizeResults(detection, dims)
+              faceapi.draw.drawDetections(canvas, resized)
+            }
+          }
+        }
+
+        if (detection) {
+          setFaceDetected(true)
+          setFaceScore(detection.detection.score)
+        } else {
+          setFaceDetected(false)
+          setFaceScore(0)
+        }
+      } catch {
+        // ignore detection errors
+      }
+
+      detectionFrameRef.current = requestAnimationFrame(detect)
+    }
+
+    detectionFrameRef.current = requestAnimationFrame(detect)
+  }, [])
+
+  const stopDetection = useCallback(() => {
+    if (detectionFrameRef.current) {
+      cancelAnimationFrame(detectionFrameRef.current)
+    }
+  }, [])
+
+  const captureFace = useCallback(async (): Promise<{ detected: boolean; descriptor?: Float32Array; score?: number }> => {
     const video = videoRef.current
-    if (video.readyState !== 4) return { detected: false }
+    if (!video || video.readyState !== 4) return { detected: false }
 
     const detection = await faceapi
       .detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
       .withFaceLandmarks()
       .withFaceDescriptor()
 
-    if (canvasRef.current) {
-      const canvas = canvasRef.current
-      canvas.width = video.videoWidth
-      canvas.height = video.videoHeight
-      const ctx = canvas.getContext('2d')
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height)
-        if (detection) {
-          const dims = faceapi.matchDimensions(canvas, { width: video.videoWidth, height: video.videoHeight }, true)
-          const resized = faceapi.resizeResults(detection, dims)
-          faceapi.draw.drawDetections(canvas, resized)
-        }
-      }
-    }
-
     if (detection) {
-      setFaceDetected(true)
-      setDescriptor(detection.descriptor)
       return { detected: true, descriptor: detection.descriptor, score: detection.detection.score }
     }
-
-    setFaceDetected(false)
-    setDescriptor(null)
     return { detected: false }
-  }, [isReady])
-
-  const startDetection = useCallback(() => {
-    if (detectionInterval.current) clearInterval(detectionInterval.current)
-    setIsDetecting(true)
-    detectionInterval.current = setInterval(detectFace, 500)
-  }, [detectFace])
-
-  const stopDetection = useCallback(() => {
-    if (detectionInterval.current) clearInterval(detectionInterval.current)
-    setIsDetecting(false)
   }, [])
 
   useEffect(() => {
     return () => {
-      if (detectionInterval.current) clearInterval(detectionInterval.current)
+      if (detectionFrameRef.current) cancelAnimationFrame(detectionFrameRef.current)
+      if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop())
     }
   }, [])
 
@@ -120,14 +155,13 @@ export function useFaceRecognition() {
     videoRef,
     canvasRef,
     isReady,
-    isDetecting,
     faceDetected,
-    descriptor,
+    faceScore,
     startCamera,
     stopCamera,
-    detectFace,
     startDetection,
     stopDetection,
+    captureFace,
   }
 }
 
