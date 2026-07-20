@@ -450,8 +450,8 @@ export default function AttendancePage() {
                 </div>
 
                 <div className="relative inline-block rounded-xl overflow-hidden border-2 border-sky-300 mb-5 w-full max-w-sm shadow-lg shadow-sky-500/10">
-                  <video ref={face.videoRef} autoPlay muted playsInline className="w-full aspect-[4/3] object-cover" />
-                  <canvas ref={face.canvasRef} className="absolute inset-0 w-full h-full" />
+                    <video ref={face.videoRef} autoPlay muted playsInline className="w-full aspect-[4/3] object-cover" style={{ transform: 'scaleX(-1)' }} />
+                    <canvas ref={face.canvasRef} className="absolute inset-0 w-full h-full" style={{ transform: 'scaleX(-1)' }} />
 
                   {/* Status badge */}
                   {isProcessing ? (

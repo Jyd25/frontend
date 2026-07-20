@@ -229,8 +229,8 @@ export default function FaceRegistrationPage() {
               {showCamera && (
                 <Card className="p-4">
                   <div className="relative rounded-lg overflow-hidden bg-black aspect-video max-h-[400px] mx-auto">
-                    <video ref={face.videoRef} autoPlay playsInline muted className="w-full h-full object-contain" />
-                    <canvas ref={face.canvasRef} className="absolute inset-0 w-full h-full" />
+                    <video ref={face.videoRef} autoPlay playsInline muted className="w-full h-full object-contain" style={{ transform: 'scaleX(-1)' }} />
+                    <canvas ref={face.canvasRef} className="absolute inset-0 w-full h-full" style={{ transform: 'scaleX(-1)' }} />
                     {face.faceDetected ? (
                       <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-green-500/90 text-white text-xs font-medium px-2 py-1 rounded-full">
                         <CheckCircle2 size={12} />
