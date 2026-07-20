@@ -1,5 +1,31 @@
 import api from '@/lib/axios'
 
+interface AttendanceListItem {
+  employee_id: number
+  name: string
+  nik: string
+  department: string
+  status: string
+  check_in_time?: string
+  check_out_time?: string
+  late_minutes?: number
+}
+
+interface MyAttendance {
+  status: string
+  check_in_time?: string
+  check_out_time?: string
+  location_status?: string
+  face_status?: string
+}
+
+interface ScheduleInfo {
+  start_time?: string
+  end_time?: string
+  check_in_deadline?: string
+  check_out_deadline?: string
+}
+
 interface DashboardStats {
   total_employees: number
   today_present: number
@@ -8,6 +34,13 @@ interface DashboardStats {
   today_leave: number
   today_permission: number
   today_sick: number
+  today_attendance_list?: AttendanceListItem[]
+  today_absent_list?: AttendanceListItem[]
+  my_attendance?: MyAttendance | null
+  schedule?: ScheduleInfo
+  current_time?: string
+  current_date?: string
+  day_name?: string
 }
 
 interface DailyStat {
