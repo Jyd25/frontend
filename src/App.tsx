@@ -21,6 +21,8 @@ const UserListPage = lazy(() => import('./pages/users/UserListPage'))
 const LeavePage = lazy(() => import('./pages/leaves/LeavePage'))
 const CorrectionPage = lazy(() => import('./pages/corrections/CorrectionPage'))
 const ExportPage = lazy(() => import('./pages/reports/ExportPage'))
+const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'))
+const FaceUpdateRequestPage = lazy(() => import('./pages/face-requests/FaceUpdateRequestPage'))
 
 function Loading() {
   return (
@@ -61,6 +63,8 @@ export default function App() {
           <Route path="/leaves" element={<LeavePage />} />
           <Route path="/corrections" element={<CorrectionPage />} />
           <Route path="/export" element={<ExportPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/face-update-requests" element={<FaceUpdateRequestPage />} />
         </Route>
         <Route path="/" element={<RootRedirect />} />
         <Route path="*" element={<NotFoundPage />} />

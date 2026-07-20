@@ -77,3 +77,43 @@ export const geolocationService = {
     return data.data
   },
 }
+
+export interface FaceUpdateRequest {
+  id: number
+  employee_id: number
+  employee?: { id: number; name: string; nik: string }
+  approver?: { id: number; name: string }
+  descriptor_path: string
+  image_path: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  admin_note: string | null
+  created_at: string
+}
+
+export const faceUpdateRequestService = {
+  getAll: async (params?: { page?: number; per_page?: number; status?: string }) => {
+    const { data } = await api.get('/face-update-requests', { params })
+    return data
+  },
+  create: async (descriptor: number[], image?: File) => {
+    if (image) {
+      const fd = new FormData()
+      fd.append('descriptor', JSON.stringify(descriptor))
+      fd.append('image', image)
+      const { data } = await api.post('/face-update-requests', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      return data.data
+    }
+    const { data } = await api.post('/face-update-requests', { descriptor: JSON.stringify(descriptor) })
+    return data.data
+  },
+  approve: async (id: number) => {
+    const { data } = await api.post(`/face-update-requests/${id}/approve`)
+    return data.data
+  },
+  reject: async (id: number, adminNote: string) => {
+    const { data } = await api.post(`/face-update-requests/${id}/reject`, { admin_note: adminNote })
+    return data.data
+  },
+}

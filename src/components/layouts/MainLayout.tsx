@@ -1,12 +1,11 @@
 import { Outlet, Navigate, Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useLogout, useProfile } from '@/hooks/useAuth'
-import { LogOut, LayoutDashboard, Users, Building2, Briefcase, Clock, MapPin, CalendarCheck, Bell, Menu, X, UserCog, FileText, AlertTriangle, Download } from 'lucide-react'
+import { LogOut, LayoutDashboard, Users, Building2, Briefcase, Clock, MapPin, CalendarCheck, Bell, Menu, X, UserCog, FileText, AlertTriangle, Download, Camera } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import Logo from '@/components/ui/Logo'
-import ProfileModal from '@/components/ui/ProfileModal'
 import api from '@/lib/axios'
 
 type SidebarItem = 
@@ -19,6 +18,7 @@ const sidebarItems: SidebarItem[] = [
   { label: 'Kehadiran', icon: CalendarCheck, href: '/attendance', roles: ['Administrator', 'Guru', 'Karyawan'] },
   { label: 'Izin / Sakit / Cuti', icon: FileText, href: '/leaves', roles: ['Administrator', 'Guru', 'Karyawan'] },
   { label: 'Perbaikan Kehadiran', icon: AlertTriangle, href: '/corrections', roles: ['Administrator', 'Guru', 'Karyawan'] },
+  { label: 'Update Wajah', icon: Camera, href: '/face-update-requests', roles: ['Administrator', 'Guru', 'Karyawan'] },
   { divider: true, label: ' MANAJEMEN', roles: ['Administrator'] },
   { label: 'Export Laporan', icon: Download, href: '/export', roles: ['Administrator'] },
   { label: 'Karyawan', icon: Users, href: '/employees', roles: ['Administrator'] },
@@ -37,7 +37,6 @@ export default function MainLayout() {
   const logout = useLogout()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [profileOpen, setProfileOpen] = useState(false)
   const { data: profileData } = useProfile()
 
   const { data: unreadData } = useQuery({
@@ -109,7 +108,7 @@ export default function MainLayout() {
           })}
         </nav>
         <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-gray-100 bg-white">
-          <button onClick={() => { setSidebarOpen(false); setProfileOpen(true) }} className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer text-left">
+          <Link to="/profile" className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors text-left" onClick={() => setSidebarOpen(false)}>
             <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
               {user.name?.charAt(0)?.toUpperCase()}
             </div>
@@ -117,7 +116,7 @@ export default function MainLayout() {
               <p className="text-[13px] font-medium text-gray-900 truncate">{user.name}</p>
               <p className="text-[11px] text-gray-500">{user.role?.name}</p>
             </div>
-          </button>
+          </Link>
         </div>
       </aside>
 
@@ -129,12 +128,12 @@ export default function MainLayout() {
           </button>
           <div className="flex items-center gap-2 sm:gap-4 ml-auto">
             <div className="flex items-center gap-2 sm:hidden">
-              <button onClick={() => setProfileOpen(true)} className="flex items-center gap-2">
+              <Link to="/profile" className="flex items-center gap-2" onClick={() => setSidebarOpen(false)}>
                 <div className="w-7 h-7 rounded-full gradient-primary flex items-center justify-center text-white font-semibold text-[10px]">
                   {user.name?.charAt(0)?.toUpperCase()}
                 </div>
                 <span className="text-[11px] font-medium text-gray-600 max-w-[80px] truncate">{user.role?.name}</span>
-              </button>
+              </Link>
             </div>
             <Link to="/notifications" className="relative p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
               <Bell size={18} />
@@ -145,10 +144,10 @@ export default function MainLayout() {
               )}
             </Link>
             <div className="hidden sm:flex items-center gap-3">
-              <button onClick={() => setProfileOpen(true)} className="text-right cursor-pointer">
+              <Link to="/profile" className="text-right cursor-pointer">
                 <p className="text-[13px] font-medium text-gray-900">{user.name}</p>
                 <p className="text-[11px] text-gray-500">{user.role?.name}</p>
-              </button>
+              </Link>
             </div>
             <div className="w-px h-6 bg-gray-200 hidden sm:block" />
             <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Logout">
@@ -160,8 +159,6 @@ export default function MainLayout() {
           <Outlet />
         </main>
       </div>
-
-      <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
     </div>
   )
 }
