@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { Users, CheckCircle2, Clock, XCircle, Briefcase, MapPin, AlertTriangle } from 'lucide-react'
@@ -25,11 +25,15 @@ export default function DashboardPage() {
   const { data: stats } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: dashboardService.getStats,
+    staleTime: 30000,
   })
 
-  const hours = now.toLocaleTimeString('id-ID', { hour: '2-digit', hour12: false })
-  const minutes = now.toLocaleTimeString('id-ID', { minute: '2-digit' })
-  const seconds = now.toLocaleTimeString('id-ID', { second: '2-digit' })
+  const clockDisplay = useMemo(() => {
+    const hours = now.toLocaleTimeString('id-ID', { hour: '2-digit', hour12: false })
+    const minutes = now.toLocaleTimeString('id-ID', { minute: '2-digit' })
+    const seconds = now.toLocaleTimeString('id-ID', { second: '2-digit' })
+    return { hours, minutes, seconds }
+  }, [now])
 
   const statCards = [
     { label: 'Total Karyawan', value: stats?.total_employees ?? 0, icon: Users, accent: 'bg-sky-50 text-sky-600 ring-sky-500/10' },
@@ -49,11 +53,11 @@ export default function DashboardPage() {
         {/* Clock */}
         <div className="mt-5">
           <div className="inline-flex items-baseline gap-1 font-mono tabular-nums tracking-tighter">
-            <span className="text-5xl sm:text-6xl font-semibold text-white">{hours}</span>
+            <span className="text-5xl sm:text-6xl font-semibold text-white">{clockDisplay.hours}</span>
             <span className="text-2xl font-light text-white/70 animate-pulse">:</span>
-            <span className="text-5xl sm:text-6xl font-semibold text-white">{minutes}</span>
+            <span className="text-5xl sm:text-6xl font-semibold text-white">{clockDisplay.minutes}</span>
             <span className="text-2xl font-light text-white/40">:</span>
-            <span className="text-5xl sm:text-6xl font-normal text-white/50">{seconds}</span>
+            <span className="text-5xl sm:text-6xl font-normal text-white/50">{clockDisplay.seconds}</span>
           </div>
           <div className="flex items-center justify-center gap-1.5 mt-2">
             <span className="relative flex h-2 w-2">

@@ -8,7 +8,7 @@ export async function loadModels() {
   if (modelsLoaded) return true
   try {
     await Promise.all([
-      faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
       faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
       faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
     ])
@@ -26,15 +26,16 @@ export function useFaceRecognition() {
   const [isReady, setIsReady] = useState(false)
   const [faceDetected, setFaceDetected] = useState(false)
   const [faceScore, setFaceScore] = useState(0)
-  const detectionFrameRef = useRef<number>(0)
+  const detectingRef = useRef(false)
+  const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
 
   const startCamera = useCallback(async (): Promise<boolean> => {
     try {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: isMobile ? 480 : 640 },
-          height: { ideal: isMobile ? 360 : 480 },
+          width: { ideal: isMobile ? 320 : 480 },
+          height: { ideal: isMobile ? 240 : 360 },
           facingMode: 'user',
         },
       })
@@ -59,35 +60,24 @@ export function useFaceRecognition() {
     if (videoRef.current) {
       videoRef.current.srcObject = null
     }
-    if (detectionFrameRef.current) {
-      cancelAnimationFrame(detectionFrameRef.current)
-    }
+    detectingRef.current = false
+    if (timerRef.current) clearInterval(timerRef.current)
     setIsReady(false)
     setFaceDetected(false)
     setFaceScore(0)
   }, [])
 
   const startDetection = useCallback(() => {
-    let lastDetectionTime = 0
-    const DETECT_INTERVAL = 300
+    if (detectingRef.current) return
+    detectingRef.current = true
 
-    const detect = async () => {
+    timerRef.current = setInterval(async () => {
       const video = videoRef.current
-      if (!video || video.readyState !== 4) {
-        detectionFrameRef.current = requestAnimationFrame(detect)
-        return
-      }
-
-      const now = Date.now()
-      if (now - lastDetectionTime < DETECT_INTERVAL) {
-        detectionFrameRef.current = requestAnimationFrame(detect)
-        return
-      }
-      lastDetectionTime = now
+      if (!video || video.readyState !== 4 || !detectingRef.current) return
 
       try {
         const detection = await faceapi
-          .detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.4 }))
+          .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 }))
           .withFaceLandmarks()
           .withFaceDescriptor()
 
@@ -114,19 +104,14 @@ export function useFaceRecognition() {
           setFaceScore(0)
         }
       } catch {
-        // ignore detection errors
+        // ignore
       }
-
-      detectionFrameRef.current = requestAnimationFrame(detect)
-    }
-
-    detectionFrameRef.current = requestAnimationFrame(detect)
+    }, 600)
   }, [])
 
   const stopDetection = useCallback(() => {
-    if (detectionFrameRef.current) {
-      cancelAnimationFrame(detectionFrameRef.current)
-    }
+    detectingRef.current = false
+    if (timerRef.current) clearInterval(timerRef.current)
   }, [])
 
   const captureFace = useCallback(async (): Promise<{ detected: boolean; descriptor?: Float32Array; score?: number }> => {
@@ -134,7 +119,7 @@ export function useFaceRecognition() {
     if (!video || video.readyState !== 4) return { detected: false }
 
     const detection = await faceapi
-      .detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+      .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
       .withFaceLandmarks()
       .withFaceDescriptor()
 
@@ -146,7 +131,7 @@ export function useFaceRecognition() {
 
   useEffect(() => {
     return () => {
-      if (detectionFrameRef.current) cancelAnimationFrame(detectionFrameRef.current)
+      if (timerRef.current) clearInterval(timerRef.current)
       if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop())
     }
   }, [])

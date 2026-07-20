@@ -40,6 +40,7 @@ export default function EmployeeListPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['employees', page, debouncedSearch],
     queryFn: () => employeeService.getAll({ page, per_page: 10, search: debouncedSearch }),
+    staleTime: 10000,
   })
 
   const deleteMutation = useMutation({

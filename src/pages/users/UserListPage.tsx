@@ -45,6 +45,7 @@ export default function UserListPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['users', page, debouncedSearch],
     queryFn: () => userService.getAll({ page, per_page: 10, search: debouncedSearch }),
+    staleTime: 10000,
   })
 
   const { data: rolesData } = useQuery({

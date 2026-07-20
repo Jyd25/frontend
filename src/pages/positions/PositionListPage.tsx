@@ -32,6 +32,7 @@ export default function PositionListPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['positions', page, debouncedSearch],
     queryFn: () => positionService.getAll({ page, per_page: 10, search: debouncedSearch }),
+    staleTime: 10000,
   })
 
   const { data: rolesData } = useQuery({
@@ -40,6 +41,7 @@ export default function PositionListPage() {
       const { data } = await api.get('/roles')
       return data.data
     },
+    staleTime: 60000,
   })
 
   const createMutation = useMutation({

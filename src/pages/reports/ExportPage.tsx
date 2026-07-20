@@ -68,6 +68,7 @@ export default function ExportPage() {
   const { data: depts } = useQuery({
     queryKey: ['departments-select'],
     queryFn: () => departmentService.getAll({ per_page: 100 }),
+    staleTime: 60000,
   })
 
   const handleExport = async (format: 'csv' | 'html') => {

@@ -47,6 +47,7 @@ export default function MainLayout() {
       return data.data
     },
     refetchInterval: 30000,
+    staleTime: 30000,
   })
 
   useEffect(() => {

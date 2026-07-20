@@ -47,6 +47,7 @@ export default function AttendanceListPage() {
   const { data: departments } = useQuery({
     queryKey: ['departments-select'],
     queryFn: () => departmentService.getAll({ per_page: 100 }),
+    staleTime: 60000,
   })
 
   const { data, isLoading } = useQuery({
@@ -59,6 +60,7 @@ export default function AttendanceListPage() {
         department_id: deptFilter ? Number(deptFilter) : undefined,
         status: statusFilter || undefined,
       }),
+    staleTime: 10000,
   })
 
   const columns = [

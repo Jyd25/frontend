@@ -40,6 +40,7 @@ export default function ScheduleListPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['schedules', page, debouncedSearch],
     queryFn: () => scheduleService.getAll({ page, per_page: 10, search: debouncedSearch }),
+    staleTime: 10000,
   })
 
   const createMutation = useMutation({

@@ -63,6 +63,7 @@ export default function AttendancePage() {
   const { data: todayAttendance, isLoading } = useQuery({
     queryKey: ['attendance-today'],
     queryFn: attendanceService.getToday,
+    staleTime: 15000,
   })
 
   const checkInMutation = useMutation({

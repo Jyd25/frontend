@@ -25,6 +25,7 @@ export default function NotificationPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['notifications'],
     queryFn: () => notificationService.getAll({ per_page: 50 }),
+    staleTime: 10000,
   })
 
   const markReadMutation = useMutation({

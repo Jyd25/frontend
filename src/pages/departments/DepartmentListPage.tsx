@@ -30,6 +30,7 @@ export default function DepartmentListPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['departments', page, debouncedSearch],
     queryFn: () => departmentService.getAll({ page, per_page: 10, search: debouncedSearch }),
+    staleTime: 10000,
   })
 
   const createMutation = useMutation({

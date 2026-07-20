@@ -27,6 +27,7 @@ export default function CorrectionPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['corrections', page, statusFilter],
     queryFn: () => correctionService.getAll({ page, per_page: 15, ...(statusFilter && { status: statusFilter }) }),
+    staleTime: 10000,
   })
 
   const createMutation = useMutation({

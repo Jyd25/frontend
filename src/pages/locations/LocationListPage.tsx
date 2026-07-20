@@ -39,6 +39,7 @@ export default function LocationListPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['locations', page, debouncedSearch],
     queryFn: () => locationService.getAll({ page, per_page: 10, search: debouncedSearch }),
+    staleTime: 10000,
   })
 
   const createMutation = useMutation({

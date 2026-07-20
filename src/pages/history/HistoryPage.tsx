@@ -48,6 +48,7 @@ export default function HistoryPage() {
         start_date: startDate || undefined,
         end_date: endDate || undefined,
       }),
+    staleTime: 10000,
   })
 
   const columns = [

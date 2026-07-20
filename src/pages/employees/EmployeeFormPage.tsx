@@ -57,21 +57,25 @@ export default function EmployeeFormPage() {
     queryKey: ['employee', id],
     queryFn: () => employeeService.getById(Number(id)),
     enabled: isEdit,
+    staleTime: 30000,
   })
 
   const { data: departments } = useQuery({
     queryKey: ['departments-select'],
     queryFn: () => departmentService.getAll({ per_page: 100 }),
+    staleTime: 60000,
   })
 
   const { data: positions } = useQuery({
     queryKey: ['positions-select'],
     queryFn: () => positionService.getAll({ per_page: 100 }),
+    staleTime: 60000,
   })
 
   const { data: schedules } = useQuery({
     queryKey: ['schedules-select'],
     queryFn: () => scheduleService.getAll({ per_page: 100 }),
+    staleTime: 60000,
   })
 
   useEffect(() => {
