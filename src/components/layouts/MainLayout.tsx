@@ -1,7 +1,7 @@
 import { Outlet, Navigate, Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useLogout, useProfile } from '@/hooks/useAuth'
-import { LogOut, LayoutDashboard, Users, Building2, Briefcase, Clock, MapPin, CalendarCheck, Bell, Menu, X, UserCog, FileText, AlertTriangle, Download } from 'lucide-react'
+import { LogOut, LayoutDashboard, Users, Building2, Briefcase, Clock, MapPin, CalendarCheck, Bell, Menu, X, UserCog, FileText, AlertTriangle, Download, ScanFace } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
@@ -26,6 +26,7 @@ const sidebarItems: SidebarItem[] = [
   { label: 'Jabatan', icon: Briefcase, href: '/positions', roles: ['Administrator'] },
   { label: 'Jadwal', icon: Clock, href: '/schedules', roles: ['Administrator'] },
   { label: 'Lokasi', icon: MapPin, href: '/locations', roles: ['Administrator'] },
+  { label: 'Registrasi Wajah', icon: ScanFace, href: '/face-registration', roles: ['Administrator'] },
   { divider: true, label: ' LAINNYA', roles: ['Administrator', 'Guru', 'Karyawan'] },
   { label: 'Riwayat', icon: CalendarCheck, href: '/history', roles: ['Administrator', 'Guru', 'Karyawan'] },
   { label: 'Notifikasi', icon: Bell, href: '/notifications', roles: ['Administrator', 'Guru', 'Karyawan'] },

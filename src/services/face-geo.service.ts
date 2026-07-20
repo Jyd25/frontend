@@ -1,6 +1,14 @@
 import api from '@/lib/axios'
 import type { ApiResponse } from '@/types/api'
 
+export interface FaceDataset {
+  id: number
+  employee_id: number
+  image_path: string | null
+  is_primary: boolean
+  created_at: string
+}
+
 export interface VerifyResult {
   matched: boolean
   message: string
@@ -47,6 +55,15 @@ export const faceService = {
       force: true,
     })
     return data.data
+  },
+  getHistory: async (employeeId?: number) => {
+    const params = employeeId ? { employee_id: employeeId } : {}
+    const { data } = await api.get('/faces/history', { params })
+    return data.data
+  },
+  delete: async (id: number) => {
+    const { data } = await api.delete(`/faces/${id}`)
+    return data
   },
 }
 
