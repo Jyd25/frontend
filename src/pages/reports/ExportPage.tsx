@@ -20,13 +20,13 @@ function exportToCSV(data: ExportData) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `laporan-absensi-${data.period.replace(/\s/g, '')}.csv`
+  a.download = `laporan-kehadiran-${data.period.replace(/\s/g, '')}.csv`
   a.click()
   URL.revokeObjectURL(url)
 }
 
 function exportToHTML(data: ExportData) {
-  let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Laporan Absensi</title>
+  let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Laporan Kehadiran</title>
   <style>
     body{font-family:Arial,sans-serif;padding:20px;font-size:12px}
     h1{text-align:center;font-size:18px;margin-bottom:4px}
@@ -54,7 +54,7 @@ function exportToHTML(data: ExportData) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `laporan-absensi-${data.period.replace(/\s/g, '')}.html`
+  a.download = `laporan-kehadiran-${data.period.replace(/\s/g, '')}.html`
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -92,7 +92,7 @@ export default function ExportPage() {
 
   return (
     <div className="max-w-[1400px] mx-auto space-y-6">
-      <h1 className="text-3xl font-semibold tracking-tight text-gray-900 text-center">Export Laporan Absensi</h1>
+      <h1 className="text-3xl font-semibold tracking-tight text-gray-900 text-center">Export Laporan Kehadiran</h1>
 
       <Card title="Filter Periode">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">

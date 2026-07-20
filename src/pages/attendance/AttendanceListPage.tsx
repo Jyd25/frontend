@@ -116,7 +116,7 @@ export default function AttendanceListPage() {
 
   return (
     <div className="max-w-[1400px] mx-auto space-y-6">
-      <h1 className="text-3xl font-semibold tracking-tight text-gray-900 text-center">Daftar Absensi</h1>
+      <h1 className="text-3xl font-semibold tracking-tight text-gray-900 text-center">Daftar Kehadiran</h1>
 
       <Card>
         <div className="flex flex-wrap gap-4 mb-4">
@@ -153,7 +153,7 @@ export default function AttendanceListPage() {
           </select>
         </div>
 
-        <DataTable columns={columns} data={attendances} loading={isLoading} emptyMessage="Tidak ada data absensi" />
+        <DataTable columns={columns} data={attendances} loading={isLoading} emptyMessage="Tidak ada data kehadiran" />
 
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200/80">

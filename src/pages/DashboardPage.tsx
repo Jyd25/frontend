@@ -144,7 +144,7 @@ export default function DashboardPage() {
           </Card>
 
           {/* Belum Absen */}
-          <Card title="Belum Absen Hari Ini">
+          <Card title="Belum Kehadiran Hari Ini">
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
               {stats?.today_absent_list?.length === 0 && (
                 <p className="text-sm text-gray-400 text-center py-4">Semua sudah hadir</p>
@@ -169,8 +169,8 @@ export default function DashboardPage() {
       {/* ===== GURU / KARYAWAN: Own Attendance ===== */}
       {isStaff && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Status Absensi Hari Ini */}
-          <Card title="Status Absensi Hari Ini">
+          {/* Status Kehadiran Hari Ini */}
+          <Card title="Status Kehadiran Hari Ini">
             {stats?.my_attendance ? (
               <div className="space-y-4">
                 <div className="flex items-center gap-3 p-4 rounded-xl bg-gray-50">
@@ -210,8 +210,8 @@ export default function DashboardPage() {
             ) : (
               <div className="text-center py-6">
                 <AlertTriangle size={36} className="mx-auto text-amber-400 mb-2" />
-                <p className="text-sm font-medium text-gray-700">Belum Absen Hari Ini</p>
-                <p className="text-xs text-gray-500 mt-1">Silakan lakukan check-in di halaman absensi</p>
+                <p className="text-sm font-medium text-gray-700">Belum Kehadiran Hari Ini</p>
+                <p className="text-xs text-gray-500 mt-1">Silakan lakukan check-in di halaman kehadiran</p>
                 <Link to="/attendance" className="inline-block mt-3">
                   <span className="text-sm font-medium text-sky-600 hover:text-sky-700">Absen Sekarang &rarr;</span>
                 </Link>
@@ -251,7 +251,7 @@ export default function DashboardPage() {
               <div className="rounded-xl gradient-primary-subtle border border-sky-100 p-4">
                 <p className="text-sm font-medium text-gray-800">Realtime Attendance System</p>
                 <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                  Sistem absensi dengan face recognition, validasi geolokasi, dan notifikasi real-time untuk manajemen kehadiran sekolah.
+                  Sistem kehadiran dengan face recognition, validasi geolokasi, dan notifikasi real-time untuk manajemen kehadiran sekolah.
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -269,12 +269,12 @@ export default function DashboardPage() {
         )}
 
         {isStaff && (
-          <Card title="Informasi Absensi">
+          <Card title="Informasi Kehadiran">
             <div className="space-y-4">
               <div className="rounded-xl gradient-primary-subtle border border-sky-100 p-4">
                 <p className="text-sm font-medium text-gray-800">Cahaya Rancamaya Islamic Boarding School</p>
                 <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                  Sistem absensi dengan face recognition dan validasi geolokasi. Pastikan Anda berada di area sekolah saat melakukan check-in.
+                  Sistem kehadiran dengan face recognition dan validasi geolokasi. Pastikan Anda berada di area sekolah saat melakukan check-in.
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3">

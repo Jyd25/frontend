@@ -62,7 +62,7 @@ export default function LoginPage() {
       </form>
 
       <p className="text-xs text-gray-400 text-center mt-6">
-        Sistem Absensi Digital
+        Sistem Kehadiran Digital
       </p>
     </div>
   )

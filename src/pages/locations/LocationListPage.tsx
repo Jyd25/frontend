@@ -160,7 +160,7 @@ export default function LocationListPage() {
   return (
     <div className="max-w-[1400px] mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h1 className="text-3xl font-semibold tracking-tight text-gray-900 text-center">Lokasi Absensi</h1>
+        <h1 className="text-3xl font-semibold tracking-tight text-gray-900 text-center">Lokasi Kehadiran</h1>
         <Button onClick={() => openFormModal()}>
           <Plus size={16} className="mr-2" /> Tambah
         </Button>

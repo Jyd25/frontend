@@ -65,7 +65,7 @@ export default function CorrectionPage() {
   return (
     <div className="max-w-[1400px] mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-center sm:text-left">
-        <h1 className="text-3xl font-semibold tracking-tight text-gray-900">{isAdmin ? 'Perbaikan Absensi' : 'Pengajuan Perbaikan'}</h1>
+        <h1 className="text-3xl font-semibold tracking-tight text-gray-900">{isAdmin ? 'Perbaikan Kehadiran' : 'Pengajuan Perbaikan'}</h1>
         {!isAdmin && (
           <Button onClick={() => setShowForm(true)}>
             <AlertTriangle size={16} className="mr-2" /> Ajukan Perbaikan
@@ -134,7 +134,7 @@ export default function CorrectionPage() {
       </Card>
 
       {/* Form Modal */}
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Ajukan Perbaikan Absensi">
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Ajukan Perbaikan Kehadiran">
         <div className="space-y-4">
           <Input label="Tanggal" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

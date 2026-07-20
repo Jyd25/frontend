@@ -98,7 +98,7 @@ export default function HistoryPage() {
 
   return (
     <div className="max-w-[1400px] mx-auto space-y-6">
-      <h1 className="text-3xl font-semibold tracking-tight text-gray-900 text-center">Riwayat Absensi</h1>
+      <h1 className="text-3xl font-semibold tracking-tight text-gray-900 text-center">Riwayat Kehadiran</h1>
 
       <Card>
         <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-end gap-3 mb-4">
@@ -124,7 +124,7 @@ export default function HistoryPage() {
           </Button>
         </div>
 
-        <DataTable columns={columns} data={attendances} loading={isLoading} emptyMessage="Tidak ada data riwayat absensi" />
+        <DataTable columns={columns} data={attendances} loading={isLoading} emptyMessage="Tidak ada data riwayat kehadiran" />
 
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200/80">

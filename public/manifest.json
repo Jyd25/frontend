@@ -1,7 +1,7 @@
 {
-  "name": "Absensi System",
-  "short_name": "Absensi",
-  "description": "Sistem Absensi Realtime dengan Face Recognition & Geolocation",
+  "name": "Sistem Kehadiran",
+  "short_name": "Kehadiran",
+  "description": "Sistem Kehadiran Realtime dengan Face Recognition & Geolocation",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

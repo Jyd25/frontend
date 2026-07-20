@@ -16,9 +16,9 @@ type SidebarItem =
 const sidebarItems: SidebarItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', roles: ['Administrator', 'Pimpinan'] },
   { divider: true, label: ' MENU UTAMA', roles: ['Administrator', 'Guru', 'Karyawan'] },
-  { label: 'Absensi', icon: CalendarCheck, href: '/attendance', roles: ['Administrator', 'Guru', 'Karyawan'] },
+  { label: 'Kehadiran', icon: CalendarCheck, href: '/attendance', roles: ['Administrator', 'Guru', 'Karyawan'] },
   { label: 'Izin / Sakit / Cuti', icon: FileText, href: '/leaves', roles: ['Administrator', 'Guru', 'Karyawan'] },
-  { label: 'Perbaikan Absensi', icon: AlertTriangle, href: '/corrections', roles: ['Administrator', 'Guru', 'Karyawan'] },
+  { label: 'Perbaikan Kehadiran', icon: AlertTriangle, href: '/corrections', roles: ['Administrator', 'Guru', 'Karyawan'] },
   { divider: true, label: ' MANAJEMEN', roles: ['Administrator'] },
   { label: 'Export Laporan', icon: Download, href: '/export', roles: ['Administrator'] },
   { label: 'Karyawan', icon: Users, href: '/employees', roles: ['Administrator'] },
@@ -77,7 +77,7 @@ export default function MainLayout() {
         <div className="flex items-center justify-between h-16 px-5 border-b border-gray-100">
           <Link to="/dashboard" className="flex items-center gap-2.5">
             <Logo size={26} />
-            <span className="text-[15px] font-semibold text-gray-900 tracking-tight">Absensi</span>
+            <span className="text-[15px] font-semibold text-gray-900 tracking-tight">Sistem Kehadiran</span>
           </Link>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
             <X size={18} />

@@ -93,7 +93,7 @@ export function useAttendanceReminder({
 
         // Every hour after deadline until checked in
         if (h > checkInDeadline && h <= checkOutDeadline && m === 0 && h !== 12 && !n[`ci_hourly_${h}`]) {
-          const msg = `Anda belum check-in hari ini (${h}:00). Segera lakukan absensi!`
+          const msg = `Anda belum check-in hari ini (${h}:00). Segera lakukan kehadiran!`
           toast.warning(msg, { duration: 8000 })
           showBrowserNotification('Belum Check-In', msg, `ci-hourly-${h}`)
           setNotified(`ci_hourly_${h}`)

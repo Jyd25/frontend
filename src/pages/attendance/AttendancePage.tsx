@@ -285,7 +285,7 @@ export default function AttendancePage() {
   return (
     <div className="max-w-[1400px] mx-auto space-y-6">
       <div className="gradient-primary rounded-2xl px-8 py-6 text-center shadow-lg shadow-sky-500/15">
-        <h1 className="text-3xl font-semibold tracking-tight text-white">Absensi</h1>
+        <h1 className="text-3xl font-semibold tracking-tight text-white">Kehadiran</h1>
         <p className="text-sm text-white/60 mt-1">Check-in dan check-out harian</p>
         <div className="mt-4">
           <div className="inline-flex items-baseline gap-1 tabular-nums font-mono tracking-tighter">
@@ -333,7 +333,7 @@ export default function AttendancePage() {
                 <h2 className="text-xl font-semibold text-gray-900 mb-1">
                   {isCheckedIn
                     ? isCheckedOut
-                      ? 'Absensi Selesai'
+                      ? 'Kehadiran Selesai'
                       : 'Sudah Check-In'
                     : isPastCheckinDeadline
                       ? 'Terlambat Hari Ini'
@@ -511,7 +511,7 @@ export default function AttendancePage() {
                 <div className="mb-5">
                   <Loader2 size={40} className="mx-auto text-sky-500 animate-spin" />
                 </div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-3">Memproses Absensi...</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-3">Memproses Kehadiran...</h2>
                 <div className="flex flex-wrap justify-center gap-2">
                   {faceResult && (
                     faceResult.matched
