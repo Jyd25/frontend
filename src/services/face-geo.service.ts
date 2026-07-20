@@ -30,12 +30,21 @@ export const faceService = {
     return data.data
   },
   register: async (employeeId: number, descriptor: number[], image?: File) => {
-    const fd = new FormData()
-    fd.append('employee_id', String(employeeId))
-    fd.append('descriptor', JSON.stringify(descriptor))
-    if (image) fd.append('image', image)
-    const { data } = await api.post('/faces/register', fd, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    if (image) {
+      const fd = new FormData()
+      fd.append('employee_id', String(employeeId))
+      fd.append('descriptor', JSON.stringify(descriptor))
+      fd.append('force', 'true')
+      fd.append('image', image)
+      const { data } = await api.post('/faces/register', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      return data.data
+    }
+    const { data } = await api.post('/faces/register', {
+      employee_id: employeeId,
+      descriptor,
+      force: true,
     })
     return data.data
   },
