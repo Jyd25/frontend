@@ -99,9 +99,9 @@ export default function AttendanceListPage() {
       render: (item: Attendance) => getStatusBadge(item.attendance_status),
     },
     {
-      key: 'location_status',
-      header: 'Status Lokasi',
-      render: (item: Attendance) => item.location_status || '-',
+      key: 'location',
+      header: 'Lokasi',
+      render: (item: Attendance) => item.location?.location_name || '-',
     },
     {
       key: 'face_status',

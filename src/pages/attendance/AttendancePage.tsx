@@ -43,7 +43,7 @@ export default function AttendancePage() {
   const [step, setStep] = useState<Step>('idle')
   const [modelsReady, setModelsReady] = useState(false)
   const [faceResult, setFaceResult] = useState<{ matched: boolean; score: number } | null>(null)
-  const [geoResult, setGeoResult] = useState<{ inside: boolean; distance: number | null; locationName: string | null } | null>(null)
+  const [geoResult, setGeoResult] = useState<{ inside: boolean; distance: number | null; locationName: string | null; locationId: number | null } | null>(null)
   const [actionType, setActionType] = useState<'check_in' | 'check_out'>('check_in')
   const [now, setNow] = useState(new Date())
   const [cameraError, setCameraError] = useState<string | null>(null)
@@ -102,20 +102,24 @@ export default function AttendancePage() {
   const processGeo = useCallback(async (lat: number, lng: number) => {
     setStep('submitting')
     setIsProcessing(true)
+    let locationId: number | null = null
     try {
       const result = await geolocationService.validate(lat, lng)
+      locationId = result.location_id ?? null
       setGeoResult({
         inside: result.inside_radius,
         distance: result.distance,
         locationName: result.location_name,
+        locationId,
       })
     } catch {
-      setGeoResult({ inside: false, distance: null, locationName: null })
+      setGeoResult({ inside: false, distance: null, locationName: null, locationId: null })
     }
     if (actionType === 'check_in') {
       checkInMutation.mutate({
         latitude: lat,
         longitude: lng,
+        location_id: locationId ?? undefined,
         face_score: faceResult?.score,
         face_status: faceResult?.matched ? 'matched' : 'unmatched',
         photo_data: capturedFacePhoto || undefined,

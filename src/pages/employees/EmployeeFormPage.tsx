@@ -415,26 +415,22 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
   }, [face])
 
   const handleUploadSubmit = useCallback(async () => {
-    if (!pendingImage) return
-    const faceapi = await import('@vladmandic/face-api')
+    if (!pendingImage || !previewUrl) return
     const img = document.createElement('img')
-    img.src = previewUrl!
+    img.src = previewUrl
     await new Promise((resolve) => { img.onload = resolve })
 
-    const detection = await faceapi
-      .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 }))
-      .withFaceLandmarks()
-      .withFaceDescriptor()
+    const detection = await face.detectFromImage(img)
 
-    if (!detection) {
+    if (!detection.detected || !detection.descriptor) {
       toast.error('Tidak ada wajah terdeteksi di foto. Pilih foto dengan wajah yang jelas.')
       return
     }
 
-    setDetectScore(detection.detection.score)
+    setDetectScore(detection.score ?? 0)
     const arr = Array.from(detection.descriptor)
     registerMutation.mutate({ descriptor: arr, image: pendingImage })
-  }, [pendingImage, previewUrl, registerMutation])
+  }, [pendingImage, previewUrl, registerMutation, face])
 
   const handleStopCamera = () => {
     cleanup()

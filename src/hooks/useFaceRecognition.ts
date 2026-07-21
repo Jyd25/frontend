@@ -165,6 +165,18 @@ export function useFaceRecognition() {
     })
   }, [])
 
+  const detectFromImage = useCallback(async (img: HTMLImageElement): Promise<{ detected: boolean; descriptor?: Float32Array; score?: number }> => {
+    const detection = await faceapi
+      .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 }))
+      .withFaceLandmarks()
+      .withFaceDescriptor()
+
+    if (detection) {
+      return { detected: true, descriptor: detection.descriptor, score: detection.detection.score }
+    }
+    return { detected: false }
+  }, [])
+
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
@@ -185,6 +197,7 @@ export function useFaceRecognition() {
     stopDetection,
     captureFace,
     captureImage,
+    detectFromImage,
   }
 }
 
