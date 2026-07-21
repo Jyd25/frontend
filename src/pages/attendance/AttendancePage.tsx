@@ -132,12 +132,14 @@ export default function AttendancePage() {
       return
     }
 
-    toast.info('Memverifikasi wajah...')
+      toast.info('Memverifikasi wajah...')
     try {
       const verifyResult = await faceService.verify(employeeId!, descriptorToArray(result.descriptor))
       setFaceResult({ matched: verifyResult.matched, score: verifyResult.score })
 
-      if (!verifyResult.matched) {
+      if ((verifyResult as any).no_face_data) {
+        toast.warning('Data wajah belum terdaftar. Verifikasi dilewati. Silakan daftarkan wajah di menu Update Wajah.', { duration: 6000 })
+      } else if (!verifyResult.matched) {
         toast.error(`Wajah tidak cocok (skor: ${verifyResult.score}%)`)
         face.stopCamera()
         setStep('idle')
@@ -145,7 +147,7 @@ export default function AttendancePage() {
         return
       }
 
-      toast.success('Wajah cocok! Mengambil lokasi...')
+      toast.success('Verifikasi wajah selesai! Mengambil lokasi...')
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Gagal memverifikasi wajah')
       face.stopCamera()
