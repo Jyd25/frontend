@@ -240,7 +240,7 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
     staleTime: 10000,
   })
 
-  const faces: any[] = (facesData as any)?.data ?? (Array.isArray(facesData) ? facesData : [])
+  const faces: any[] = (facesData as any)?.items ?? (facesData as any)?.data ?? (Array.isArray(facesData) ? facesData : [])
 
   const registerMutation = useMutation({
     mutationFn: ({ descriptor, image }: { descriptor: number[]; image?: File }) =>

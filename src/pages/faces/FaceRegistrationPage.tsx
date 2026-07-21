@@ -41,7 +41,7 @@ export default function FaceRegistrationPage() {
   })
 
   const employees: EmployeeWithUser[] = (employeesData as PaginatedResponse<Employee> | undefined)?.data?.items ?? []
-  const faces: any[] = (facesData as any)?.data ?? (Array.isArray(facesData) ? facesData : [])
+  const faces: any[] = (facesData as any)?.items ?? (facesData as any)?.data ?? (Array.isArray(facesData) ? facesData : [])
 
   const employeeFaces = selectedEmployeeId
     ? faces.filter((f: FaceDataset) => f.employee_id === selectedEmployeeId)
