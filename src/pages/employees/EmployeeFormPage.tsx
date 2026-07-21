@@ -363,13 +363,15 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
 
   const handleStartCamera = async () => {
     cleanup()
+    setShowCamera(true)
+    await new Promise(r => setTimeout(r, 50))
     const ok = await face.startCamera()
     if (!ok) {
       toast.error(face.error || 'Gagal mengakses kamera')
+      setShowCamera(false)
       return
     }
-    setShowCamera(true)
-    setTimeout(() => face.startDetection(), 500)
+    face.startDetection()
   }
 
   const handleCapture = useCallback(async () => {
@@ -505,8 +507,8 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
         </Card>
       )}
 
-      {/* Camera */}
-      {showCamera && !previewUrl && (
+      {/* Camera - always render video element, show/hide card */}
+      <div className={showCamera && !previewUrl ? '' : 'hidden'}>
         <Card className="p-4">
           <h3 className="text-sm font-semibold text-gray-700 mb-3">Pindai Wajah</h3>
           <div className="relative rounded-xl overflow-hidden bg-black mx-auto" style={{ maxWidth: 480 }}>
@@ -534,7 +536,7 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
             </Button>
           </div>
         </Card>
-      )}
+      </div>
 
       {/* Preview */}
       {previewUrl && (
