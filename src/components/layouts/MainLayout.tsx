@@ -1,12 +1,14 @@
-import { Outlet, Navigate, Link, useLocation } from 'react-router-dom'
+import { Outlet, Navigate, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useLogout, useProfile } from '@/hooks/useAuth'
-import { LogOut, LayoutDashboard, Users, Building2, Briefcase, Clock, MapPin, CalendarCheck, Bell, Menu, X, UserCog, FileText, AlertTriangle, Download, Camera } from 'lucide-react'
+import { LogOut, LayoutDashboard, Users, Building2, Briefcase, Clock, MapPin, CalendarCheck, Bell, Menu, X, UserCog, FileText, AlertTriangle, Download, Camera, AlertCircle } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import Logo from '@/components/ui/Logo'
+import Modal from '@/components/ui/Modal'
 import api from '@/lib/axios'
+import { attendanceService } from '@/services/attendance.service'
 
 type SidebarItem = 
   | { divider: boolean; label: string; roles: string[] }
@@ -36,8 +38,12 @@ export default function MainLayout() {
   const { user, isAuthenticated, setUser } = useAuthStore()
   const logout = useLogout()
   const location = useLocation()
+  const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showAbsenPopup, setShowAbsenPopup] = useState(false)
   const { data: profileData } = useProfile()
+
+  const isStaff = ['Guru', 'Karyawan'].includes(user?.role?.name ?? '')
 
   const { data: unreadData } = useQuery({
     queryKey: ['notifications-unread'],
@@ -49,11 +55,28 @@ export default function MainLayout() {
     staleTime: 30000,
   })
 
+  const { data: todayAttendance } = useQuery({
+    queryKey: ['attendance-today'],
+    queryFn: attendanceService.getToday,
+    enabled: isStaff,
+    staleTime: 60000,
+  })
+
   useEffect(() => {
     if (profileData && !user) {
       setUser(profileData)
     }
   }, [profileData, user, setUser])
+
+  useEffect(() => {
+    if (isStaff && todayAttendance === null && !sessionStorage.getItem('absen_popup_shown')) {
+      const timer = setTimeout(() => {
+        setShowAbsenPopup(true)
+        sessionStorage.setItem('absen_popup_shown', '1')
+      }, 1500)
+      return () => clearTimeout(timer)
+    }
+  }, [isStaff, todayAttendance])
 
   if (!isAuthenticated) return <Navigate to="/login" replace />
   if (!user) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-2 border-sky-200 border-t-teal-600 rounded-full" /></div>
@@ -124,6 +147,23 @@ export default function MainLayout() {
           </Link>
         </div>
       </aside>
+
+      {/* Absen Warning Popup */}
+      <Modal open={showAbsenPopup} onClose={() => setShowAbsenPopup(false)} title="Peringatan Kehadiran">
+        <div className="text-center">
+          <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+            <AlertCircle size={28} className="text-amber-500" />
+          </div>
+          <p className="text-sm font-medium text-gray-800 mb-1">Anda belum melakukan presensi</p>
+          <p className="text-xs text-gray-500 mb-5">Silakan lakukan check-in sekarang untuk mencatat kehadiran hari ini.</p>
+          <button
+            onClick={() => { setShowAbsenPopup(false); navigate('/attendance') }}
+            className="w-full py-2.5 rounded-xl gradient-primary text-white text-sm font-semibold shadow-md shadow-sky-500/20 hover:opacity-90 transition-opacity"
+          >
+            Presen Sekarang
+          </button>
+        </div>
+      </Modal>
 
       {/* Main content */}
       <div className="lg:ml-64">
