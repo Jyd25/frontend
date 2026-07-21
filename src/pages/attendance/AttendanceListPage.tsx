@@ -105,8 +105,29 @@ export default function AttendanceListPage() {
     },
     {
       key: 'face_status',
-      header: 'Status Wajah',
-      render: (item: Attendance) => item.face_status || '-',
+      header: 'Verifikasi Wajah',
+      render: (item: Attendance) => {
+        const photo = (item as any).photo_data
+        if (!photo) return <span className="text-xs text-gray-400">-</span>
+        return (
+          <div className="flex items-center gap-2">
+            <div className={`relative w-10 h-10 rounded-lg overflow-hidden border-2 flex-shrink-0 ${
+              item.face_status === 'Matched' || item.face_status === 'matched'
+                ? 'border-emerald-400'
+                : 'border-amber-400'
+            }`}>
+              <img src={photo} alt="Wajah" className="w-full h-full object-cover" />
+              <div className={`absolute bottom-0 inset-x-0 text-center text-[8px] font-bold text-white leading-tight ${
+                item.face_status === 'Matched' || item.face_status === 'matched'
+                  ? 'bg-emerald-600/90'
+                  : 'bg-amber-500/90'
+              }`}>
+                {item.face_score ?? 0}%
+              </div>
+            </div>
+          </div>
+        )
+      },
     },
   ]
 

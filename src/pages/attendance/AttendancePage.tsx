@@ -558,15 +558,34 @@ export default function AttendancePage() {
             {/* DONE */}
             {step === 'done' && (
               <>
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-emerald-50 ring-1 ring-emerald-500/10 mb-5">
-                  <CheckCircle2 size={40} className="text-emerald-600" />
-                </div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-3">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">
                   {actionType === 'check_in' ? 'Check-In Berhasil!' : 'Check-Out Berhasil!'}
                 </h2>
+
+                {/* Face photo with score */}
+                {capturedFacePhoto && (
+                  <div className="mb-4 inline-block">
+                    <div className={`relative rounded-xl overflow-hidden border-2 ${
+                      faceResult?.matched ? 'border-emerald-400' : 'border-amber-400'
+                    }`}>
+                      <img
+                        src={capturedFacePhoto}
+                        alt="Hasil Verifikasi"
+                        className="w-40 h-40 object-cover"
+                        style={{ transform: 'scaleX(-1)' }}
+                      />
+                      <div className={`absolute bottom-0 left-0 right-0 px-2 py-1.5 text-center text-xs font-bold text-white ${
+                        faceResult?.matched ? 'bg-emerald-600/90' : 'bg-amber-500/90'
+                      }`}>
+                        {faceResult?.score ?? 0}% Cocok
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex justify-center gap-2 flex-wrap mb-6">
-                  {faceResult?.matched && <Badge variant="success">Wajah Cocok</Badge>}
                   {geoResult?.inside && <Badge variant="success">{geoResult.locationName}</Badge>}
+                  {geoResult && !geoResult.inside && <Badge variant="warning">Luar Radius</Badge>}
                 </div>
                 <Button variant="outline" onClick={() => { setStep('idle'); queryClient.invalidateQueries({ queryKey: ['attendance-today'] }) }}>
                   Tutup
@@ -600,26 +619,51 @@ export default function AttendancePage() {
 
           <Card title="Hari Ini">
             {todayAttendance ? (
-              <div className="space-y-0 divide-y divide-gray-100">
-                {[
-                  { icon: Clock, label: 'Jam Masuk', value: formatTime(todayAttendance.check_in_time), color: 'text-sky-500' },
-                  { icon: Clock, label: 'Jam Pulang', value: formatTime(todayAttendance.check_out_time), color: 'text-orange-500' },
-                  { icon: MapPin, label: 'Lokasi', value: todayAttendance.location_status === 'inside_radius' || todayAttendance.location_status === 'Inside Radius' ? (todayAttendance.location?.location_name || 'Di dalam radius') : todayAttendance.location_status === 'outside_radius' || todayAttendance.location_status === 'Outside Radius' ? `Luar Radius — ${todayAttendance.location?.location_name || '-'}` : (todayAttendance.location_status || '-'), color: 'text-emerald-500' },
-                  { icon: Fingerprint, label: 'Verifikasi', value: todayAttendance.face_status || '-', color: 'text-purple-500' },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                    <div className="p-1.5 rounded-md bg-gray-100">
-                      <item.icon size={14} className={item.color} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] text-gray-400 uppercase tracking-wide">{item.label}</p>
-                      <p className="text-sm font-medium text-gray-700 truncate">{item.value}</p>
+              <div className="space-y-3">
+                {/* Face photo from DB */}
+                {(todayAttendance as any).photo_data && (
+                  <div className="flex justify-center">
+                    <div className={`relative rounded-xl overflow-hidden border-2 ${
+                      todayAttendance.face_status === 'Matched' || todayAttendance.face_status === 'matched'
+                        ? 'border-emerald-400'
+                        : 'border-amber-400'
+                    }`}>
+                      <img
+                        src={(todayAttendance as any).photo_data}
+                        alt="Verifikasi Wajah"
+                        className="w-32 h-32 object-cover"
+                      />
+                      <div className={`absolute bottom-0 left-0 right-0 px-2 py-1 text-center text-[11px] font-bold text-white ${
+                        todayAttendance.face_status === 'Matched' || todayAttendance.face_status === 'matched'
+                          ? 'bg-emerald-600/90'
+                          : 'bg-amber-500/90'
+                      }`}>
+                        {todayAttendance.face_score ?? 0}% Cocok
+                      </div>
                     </div>
                   </div>
-                ))}
-                <div className="pt-3">
-                  <p className="text-[11px] text-gray-400 uppercase tracking-wide mb-1.5">Status</p>
-                  {getStatusBadge(todayAttendance.attendance_status)}
+                )}
+
+                <div className="space-y-0 divide-y divide-gray-100">
+                  {[
+                    { icon: Clock, label: 'Jam Masuk', value: formatTime(todayAttendance.check_in_time), color: 'text-sky-500' },
+                    { icon: Clock, label: 'Jam Pulang', value: formatTime(todayAttendance.check_out_time), color: 'text-orange-500' },
+                    { icon: MapPin, label: 'Lokasi', value: todayAttendance.location_status === 'Inside Radius' ? (todayAttendance.location?.location_name || 'Di dalam radius') : todayAttendance.location_status === 'Outside Radius' ? `Luar Radius — ${todayAttendance.location?.location_name || '-'}` : (todayAttendance.location_status || '-'), color: 'text-emerald-500' },
+                  ].map((item) => (
+                    <div key={item.label} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                      <div className="p-1.5 rounded-md bg-gray-100">
+                        <item.icon size={14} className={item.color} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">{item.label}</p>
+                        <p className="text-sm font-medium text-gray-700 truncate">{item.value}</p>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="pt-3">
+                    <p className="text-[11px] text-gray-400 uppercase tracking-wide mb-1.5">Status</p>
+                    {getStatusBadge(todayAttendance.attendance_status)}
+                  </div>
                 </div>
               </div>
             ) : (
