@@ -16,8 +16,8 @@ type SidebarItem =
 
 const sidebarItems: SidebarItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', roles: ['Administrator', 'Pimpinan'] },
-  { divider: true, label: ' MENU UTAMA', roles: ['Administrator', 'Guru', 'Karyawan'] },
-  { label: 'Kehadiran', icon: CalendarCheck, href: '/attendance', roles: ['Administrator', 'Guru', 'Karyawan'] },
+  { divider: true, label: ' MENU UTAMA', roles: ['Administrator', 'Pimpinan', 'Guru', 'Karyawan'] },
+  { label: 'Kehadiran', icon: CalendarCheck, href: '/attendance', roles: ['Administrator', 'Pimpinan', 'Guru', 'Karyawan'] },
   { label: 'Izin / Sakit / Cuti', icon: FileText, href: '/leaves', roles: ['Administrator', 'Guru', 'Karyawan'] },
   { label: 'Perbaikan Kehadiran', icon: AlertTriangle, href: '/corrections', roles: ['Administrator', 'Guru', 'Karyawan'] },
   { label: 'Update Wajah', icon: Camera, href: '/face-update-requests', roles: ['Administrator', 'Guru', 'Karyawan'] },
@@ -58,7 +58,6 @@ export default function MainLayout() {
   const { data: todayAttendance } = useQuery({
     queryKey: ['attendance-today'],
     queryFn: attendanceService.getToday,
-    enabled: isStaff,
     staleTime: 60000,
   })
 
@@ -69,14 +68,14 @@ export default function MainLayout() {
   }, [profileData, user, setUser])
 
   useEffect(() => {
-    if (isStaff && todayAttendance === null && !sessionStorage.getItem('absen_popup_shown')) {
+    if (todayAttendance === null && !sessionStorage.getItem('absen_popup_shown')) {
       const timer = setTimeout(() => {
         setShowAbsenPopup(true)
         sessionStorage.setItem('absen_popup_shown', '1')
       }, 1500)
       return () => clearTimeout(timer)
     }
-  }, [isStaff, todayAttendance])
+  }, [todayAttendance])
 
   if (!isAuthenticated) return <Navigate to="/login" replace />
   if (!user) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-2 border-sky-200 border-t-teal-600 rounded-full" /></div>
