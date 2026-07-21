@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { CheckCircle, XCircle, Camera, Upload, Trash2 } from 'lucide-react'
@@ -135,15 +135,19 @@ export default function FaceUpdateRequestPage() {
 
 function FaceRequestForm({ open, onClose }: { open: boolean; onClose: () => void }) {
   const queryClient = useQueryClient()
-  const user = useAuthStore((s) => s.user)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { startCamera, stopCamera, startDetection, stopDetection, captureFace, videoRef, canvasRef, faceDetected } = useFaceRecognition()
   const [step, setStep] = useState<'camera' | 'confirm'>('camera')
   const [descriptor, setDescriptor] = useState<number[] | null>(null)
   const [capturedImage, setCapturedImage] = useState<string | null>(null)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
 
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!descriptor) throw new Error('No descriptor')
+      if (pendingFile) {
+        return faceUpdateRequestService.create(descriptor, pendingFile)
+      }
       return faceUpdateRequestService.create(descriptor)
     },
     onSuccess: () => {
@@ -160,6 +164,7 @@ function FaceRequestForm({ open, onClose }: { open: boolean; onClose: () => void
     setStep('camera')
     setDescriptor(null)
     setCapturedImage(null)
+    setPendingFile(null)
     onClose()
   }
 
@@ -187,6 +192,34 @@ function FaceRequestForm({ open, onClose }: { open: boolean; onClose: () => void
     }
   }
 
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const faceapi = await import('@vladmandic/face-api')
+    const img = new Image()
+    img.src = URL.createObjectURL(file)
+    await new Promise((resolve) => { img.onload = resolve })
+
+    const detection = await faceapi
+      .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 }))
+      .withFaceLandmarks()
+      .withFaceDescriptor()
+
+    URL.revokeObjectURL(img.src)
+
+    if (!detection) {
+      toast.error('Tidak ada wajah terdeteksi di foto')
+      e.target.value = ''
+      return
+    }
+
+    setDescriptor(Array.from(detection.descriptor))
+    setCapturedImage(URL.createObjectURL(file))
+    setPendingFile(file)
+    setStep('confirm')
+    e.target.value = ''
+  }
+
   return (
     <Modal open={open} onClose={handleClose} title="Ajukan Update Wajah">
       <div className="space-y-4">
@@ -194,20 +227,37 @@ function FaceRequestForm({ open, onClose }: { open: boolean; onClose: () => void
         {step === 'camera' && (
           <div className="space-y-3">
             <div className="relative rounded-xl overflow-hidden bg-gray-900 aspect-video">
-              <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-              <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+              <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }} />
+              <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" style={{ transform: 'scaleX(-1)' }} />
+              {faceDetected ? (
+                <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-green-500/90 text-white text-xs font-medium px-2 py-1 rounded-full">
+                  <CheckCircle size={12} /> Wajah Terdeteksi
+                </div>
+              ) : (
+                <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-red-500/90 text-white text-xs font-medium px-2 py-1 rounded-full">
+                  <XCircle size={12} /> Mencari wajah...
+                </div>
+              )}
             </div>
-            <Button onClick={handleCapture} className="w-full" disabled={!faceDetected}>
-              <Camera size={16} className="mr-2" /> Ambil Foto
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={handleCapture} className="flex-1" disabled={!faceDetected}>
+                <Camera size={16} className="mr-2" /> Ambil Foto
+              </Button>
+              <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="flex-1">
+                <Upload size={16} className="mr-2" /> Upload Foto
+              </Button>
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+            </div>
           </div>
         )}
         {step === 'confirm' && (
           <div className="space-y-3">
-            {capturedImage && <img src={capturedImage} alt="Captured" className="w-full rounded-xl" />}
+            {capturedImage && <img src={capturedImage} alt="Preview" className="w-full rounded-xl max-h-[300px] object-contain" />}
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => { setStep('camera'); setDescriptor(null); setCapturedImage(null); handleOpen() }} className="flex-1">Ulangi</Button>
-              <Button onClick={() => submitMutation.mutate()} loading={submitMutation.isPending} className="flex-1">Kirim Permintaan</Button>
+              <Button variant="outline" onClick={() => { setStep('camera'); setDescriptor(null); setCapturedImage(null); setPendingFile(null); handleOpen() }} className="flex-1">Ulangi</Button>
+              <Button onClick={() => submitMutation.mutate()} loading={submitMutation.isPending} className="flex-1">
+                <Camera size={16} className="mr-2" /> Ajukan Perubahan
+              </Button>
             </div>
           </div>
         )}

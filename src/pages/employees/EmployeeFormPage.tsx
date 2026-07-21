@@ -304,6 +304,8 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
   const [modelsReady, setModelsReady] = useState(false)
   const [showCamera, setShowCamera] = useState(false)
   const [captureResult, setCaptureResult] = useState<{ detected: boolean; descriptor?: Float32Array; score?: number } | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [pendingImage, setPendingImage] = useState<File | null>(null)
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; face: FaceDataset | null }>({ open: false, face: null })
   const face = useFaceRecognition()
 
@@ -326,6 +328,8 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
       queryClient.invalidateQueries({ queryKey: ['face-history', employeeId] })
       toast.success('Wajah berhasil didaftarkan!')
       setCaptureResult(null)
+      setPreviewUrl(null)
+      setPendingImage(null)
       setShowCamera(false)
       face.stopCamera()
     },
@@ -346,6 +350,8 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
 
   const handleStartCamera = async () => {
     setCaptureResult(null)
+    setPreviewUrl(null)
+    setPendingImage(null)
     const ok = await face.startCamera()
     if (!ok) {
       toast.error('Gagal mengakses kamera')
@@ -363,21 +369,35 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
     }
     setCaptureResult(result)
     face.stopDetection()
+    if (face.videoRef.current) {
+      const c = document.createElement('canvas')
+      c.width = face.videoRef.current.videoWidth
+      c.height = face.videoRef.current.videoHeight
+      c.getContext('2d')?.drawImage(face.videoRef.current, 0, 0)
+      setPreviewUrl(c.toDataURL('image/jpeg'))
+    }
   }, [face])
 
-  const handleRegister = useCallback(async () => {
+  const handleRegister = useCallback(() => {
     if (!captureResult?.descriptor) return
     const arr = descriptorToArray(captureResult.descriptor)
     registerMutation.mutate({ descriptor: arr })
   }, [captureResult, registerMutation])
 
-  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    setPendingImage(file)
+    setPreviewUrl(URL.createObjectURL(file))
+    setCaptureResult(null)
+    e.target.value = ''
+  }, [])
 
+  const handleUploadSubmit = useCallback(async () => {
+    if (!pendingImage) return
     const faceapi = await import('@vladmandic/face-api')
     const img = new Image()
-    img.src = URL.createObjectURL(file)
+    img.src = previewUrl!
     await new Promise((resolve) => { img.onload = resolve })
 
     const detection = await faceapi
@@ -385,22 +405,29 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
       .withFaceLandmarks()
       .withFaceDescriptor()
 
-    URL.revokeObjectURL(img.src)
-
     if (!detection) {
       toast.error('Tidak ada wajah terdeteksi di foto')
       return
     }
 
     const arr = Array.from(detection.descriptor)
-    registerMutation.mutate({ descriptor: arr, image: file })
-    e.target.value = ''
-  }, [registerMutation])
+    registerMutation.mutate({ descriptor: arr, image: pendingImage })
+  }, [pendingImage, previewUrl, registerMutation])
 
   const handleStopCamera = () => {
     face.stopCamera()
     setShowCamera(false)
     setCaptureResult(null)
+    setPreviewUrl(null)
+  }
+
+  const handleCancelPreview = () => {
+    setCaptureResult(null)
+    setPreviewUrl(null)
+    setPendingImage(null)
+    if (showCamera) {
+      face.startDetection()
+    }
   }
 
   return (
@@ -425,12 +452,39 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
             <Upload size={16} className="mr-1.5" />
             Upload Foto
           </Button>
-          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
         </div>
       </Card>
 
+      {/* Preview */}
+      {previewUrl && (
+        <Card className="p-4">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Preview</h3>
+          <div className="flex flex-col items-center gap-3">
+            <img src={previewUrl} alt="Preview" className="rounded-xl max-h-[300px] object-contain" />
+            {captureResult && (
+              <p className="text-sm text-green-600 font-medium">
+                Wajah terdeteksi! Skor: {Math.round((captureResult.score ?? 0) * 100)}%
+              </p>
+            )}
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={handleCancelPreview}>Batal</Button>
+              {captureResult ? (
+                <Button onClick={handleRegister} loading={registerMutation.isPending}>
+                  <CheckCircle2 size={16} className="mr-1.5" /> Daftarkan Wajah
+                </Button>
+              ) : pendingImage ? (
+                <Button onClick={handleUploadSubmit} loading={registerMutation.isPending}>
+                  <Upload size={16} className="mr-1.5" /> Daftarkan Wajah
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Camera */}
-      {showCamera && (
+      {showCamera && !previewUrl && (
         <Card className="p-4">
           <div className="relative rounded-lg overflow-hidden bg-black aspect-video max-h-[400px] mx-auto">
             <video ref={face.videoRef} autoPlay playsInline muted className="w-full h-full object-contain" style={{ transform: 'scaleX(-1)' }} />
@@ -448,26 +502,14 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
             )}
           </div>
           <div className="flex justify-center gap-3 mt-4">
-            {!captureResult ? (
-              <Button variant="primary" onClick={handleCapture} disabled={!face.faceDetected}>
-                <ScanFace size={16} className="mr-1.5" />
-                Ambil Gambar
-              </Button>
-            ) : (
-              <Button variant="primary" onClick={handleRegister} loading={registerMutation.isPending}>
-                <CheckCircle2 size={16} className="mr-1.5" />
-                Daftarkan Wajah
-              </Button>
-            )}
+            <Button variant="primary" onClick={handleCapture} disabled={!face.faceDetected}>
+              <ScanFace size={16} className="mr-1.5" />
+              Ambil Gambar
+            </Button>
             <Button variant="outline" onClick={handleStopCamera}>
               Tutup Kamera
             </Button>
           </div>
-          {captureResult && (
-            <p className="text-center text-sm text-green-600 mt-2 font-medium">
-              Wajah terdeteksi! Skor: {Math.round((captureResult.score ?? 0) * 100)}%. Klik "Daftarkan Wajah" untuk menyimpan.
-            </p>
-          )}
         </Card>
       )}
 
