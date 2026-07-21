@@ -302,15 +302,20 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [modelsReady, setModelsReady] = useState(false)
+  const [modelsLoading, setModelsLoading] = useState(true)
   const [showCamera, setShowCamera] = useState(false)
-  const [captureResult, setCaptureResult] = useState<{ detected: boolean; descriptor?: Float32Array; score?: number } | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [pendingImage, setPendingImage] = useState<File | null>(null)
+  const [detecting, setDetecting] = useState(false)
+  const [detectScore, setDetectScore] = useState<number | null>(null)
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; face: FaceDataset | null }>({ open: false, face: null })
   const face = useFaceRecognition()
 
   useEffect(() => {
-    loadModels().then((ok) => setModelsReady(ok))
+    loadModels().then((ok) => {
+      setModelsReady(ok)
+      setModelsLoading(false)
+    })
   }, [])
 
   const { data: facesData } = useQuery({
@@ -327,11 +332,7 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['face-history', employeeId] })
       toast.success('Wajah berhasil didaftarkan!')
-      setCaptureResult(null)
-      setPreviewUrl(null)
-      setPendingImage(null)
-      setShowCamera(false)
-      face.stopCamera()
+      cleanup()
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.message || 'Gagal mendaftarkan wajah')
@@ -348,13 +349,21 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
     onError: () => toast.error('Gagal menghapus face dataset'),
   })
 
-  const handleStartCamera = async () => {
-    setCaptureResult(null)
+  const cleanup = () => {
     setPreviewUrl(null)
     setPendingImage(null)
+    setDetectScore(null)
+    setDetecting(false)
+    setShowCamera(false)
+    face.stopDetection()
+    face.stopCamera()
+  }
+
+  const handleStartCamera = async () => {
+    cleanup()
     const ok = await face.startCamera()
     if (!ok) {
-      toast.error('Gagal mengakses kamera')
+      toast.error(face.error || 'Gagal mengakses kamera')
       return
     }
     setShowCamera(true)
@@ -362,36 +371,57 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
   }
 
   const handleCapture = useCallback(async () => {
+    setDetecting(true)
     const result = await face.captureFace()
     if (!result.detected || !result.descriptor) {
-      toast.error('Wajah tidak terdeteksi. Coba lagi.')
+      setDetecting(false)
+      toast.error('Wajah tidak terdeteksi. Posisikan wajah tepat di tengah layar.')
       return
     }
-    setCaptureResult(result)
+    const imageFile = face.captureImage()
     face.stopDetection()
-    if (face.videoRef.current) {
-      const c = document.createElement('canvas')
-      c.width = face.videoRef.current.videoWidth
-      c.height = face.videoRef.current.videoHeight
-      c.getContext('2d')?.drawImage(face.videoRef.current, 0, 0)
-      setPreviewUrl(c.toDataURL('image/jpeg'))
+    setDetectScore(result.score ?? 0)
+
+    if (imageFile) {
+      setPendingImage(imageFile)
+      setPreviewUrl(URL.createObjectURL(imageFile))
+    } else {
+      setDetecting(false)
+      toast.error('Gagal mengambil gambar')
     }
   }, [face])
 
   const handleRegister = useCallback(() => {
-    if (!captureResult?.descriptor) return
-    const arr = descriptorToArray(captureResult.descriptor)
-    registerMutation.mutate({ descriptor: arr })
-  }, [captureResult, registerMutation])
+    if (!pendingImage) return
+    const faceapiModule = import('@vladmandic/face-api')
+    faceapiModule.then(async (faceapi) => {
+      const img = new Image()
+      img.src = previewUrl!
+      await new Promise((resolve) => { img.onload = resolve })
+      const detection = await faceapi
+        .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 }))
+        .withFaceLandmarks()
+        .withFaceDescriptor()
+      if (!detection) {
+        toast.error('Tidak ada wajah terdeteksi di foto')
+        return
+      }
+      const arr = Array.from(detection.descriptor)
+      registerMutation.mutate({ descriptor: arr, image: pendingImage })
+    })
+  }, [pendingImage, previewUrl, registerMutation])
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    setShowCamera(false)
+    face.stopCamera()
+    face.stopDetection()
+    setDetectScore(null)
     setPendingImage(file)
     setPreviewUrl(URL.createObjectURL(file))
-    setCaptureResult(null)
     e.target.value = ''
-  }, [])
+  }, [face])
 
   const handleUploadSubmit = useCallback(async () => {
     if (!pendingImage) return
@@ -406,25 +436,24 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
       .withFaceDescriptor()
 
     if (!detection) {
-      toast.error('Tidak ada wajah terdeteksi di foto')
+      toast.error('Tidak ada wajah terdeteksi di foto. Pilih foto dengan wajah yang jelas.')
       return
     }
 
+    setDetectScore(detection.detection.score)
     const arr = Array.from(detection.descriptor)
     registerMutation.mutate({ descriptor: arr, image: pendingImage })
   }, [pendingImage, previewUrl, registerMutation])
 
   const handleStopCamera = () => {
-    face.stopCamera()
-    setShowCamera(false)
-    setCaptureResult(null)
-    setPreviewUrl(null)
+    cleanup()
   }
 
   const handleCancelPreview = () => {
-    setCaptureResult(null)
     setPreviewUrl(null)
     setPendingImage(null)
+    setDetectScore(null)
+    setDetecting(false)
     if (showCamera) {
       face.startDetection()
     }
@@ -446,7 +475,7 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
         <div className="flex gap-2">
           <Button variant="primary" onClick={handleStartCamera} disabled={!modelsReady || showCamera}>
             <Camera size={16} className="mr-1.5" />
-            Kamera
+            {showCamera ? 'Kamera Aktif' : 'Kamera'}
           </Button>
           <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={!modelsReady}>
             <Upload size={16} className="mr-1.5" />
@@ -456,28 +485,31 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
         </div>
       </Card>
 
-      {/* Preview */}
-      {previewUrl && (
+      {/* Models loading */}
+      {modelsLoading && (
         <Card className="p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Preview</h3>
-          <div className="flex flex-col items-center gap-3">
-            <img src={previewUrl} alt="Preview" className="rounded-xl max-h-[300px] object-contain" />
-            {captureResult && (
-              <p className="text-sm text-green-600 font-medium">
-                Wajah terdeteksi! Skor: {Math.round((captureResult.score ?? 0) * 100)}%
-              </p>
-            )}
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={handleCancelPreview}>Batal</Button>
-              {captureResult ? (
-                <Button onClick={handleRegister} loading={registerMutation.isPending}>
-                  <CheckCircle2 size={16} className="mr-1.5" /> Daftarkan Wajah
-                </Button>
-              ) : pendingImage ? (
-                <Button onClick={handleUploadSubmit} loading={registerMutation.isPending}>
-                  <Upload size={16} className="mr-1.5" /> Daftarkan Wajah
-                </Button>
-              ) : null}
+          <div className="flex items-center gap-3 text-sm text-gray-500">
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-sky-500 border-t-transparent" />
+            Memuat model face recognition...
+          </div>
+        </Card>
+      )}
+
+      {/* Models failed */}
+      {!modelsLoading && !modelsReady && (
+        <Card className="p-4 border-red-200 bg-red-50">
+          <p className="text-sm text-red-600">Gagal memuat model face recognition. Refresh halaman untuk mencoba lagi.</p>
+        </Card>
+      )}
+
+      {/* Camera error */}
+      {face.error && (
+        <Card className="p-4 border-red-200 bg-red-50">
+          <div className="flex items-start gap-3">
+            <XCircle size={18} className="text-red-500 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-red-700">{face.error}</p>
+              <p className="text-xs text-red-500 mt-1">Pastikan browser memiliki izin akses kamera.</p>
             </div>
           </div>
         </Card>
@@ -486,29 +518,58 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
       {/* Camera */}
       {showCamera && !previewUrl && (
         <Card className="p-4">
-          <div className="relative rounded-lg overflow-hidden bg-black aspect-video max-h-[400px] mx-auto">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Pindai Wajah</h3>
+          <div className="relative rounded-xl overflow-hidden bg-black mx-auto" style={{ maxWidth: 480 }}>
             <video ref={face.videoRef} autoPlay playsInline muted className="w-full h-full object-contain" style={{ transform: 'scaleX(-1)' }} />
             <canvas ref={face.canvasRef} className="absolute inset-0 w-full h-full" style={{ transform: 'scaleX(-1)' }} />
             {face.faceDetected ? (
-              <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-green-500/90 text-white text-xs font-medium px-2 py-1 rounded-full">
+              <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-green-500/90 text-white text-xs font-medium px-2.5 py-1 rounded-full backdrop-blur-sm">
                 <CheckCircle2 size={12} />
                 Wajah Terdeteksi ({Math.round(face.faceScore * 100)}%)
               </div>
             ) : (
-              <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-red-500/90 text-white text-xs font-medium px-2 py-1 rounded-full">
+              <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-red-500/90 text-white text-xs font-medium px-2.5 py-1 rounded-full backdrop-blur-sm">
                 <XCircle size={12} />
                 Mencari wajah...
               </div>
             )}
           </div>
           <div className="flex justify-center gap-3 mt-4">
-            <Button variant="primary" onClick={handleCapture} disabled={!face.faceDetected}>
+            <Button variant="primary" onClick={handleCapture} disabled={!face.faceDetected || detecting}>
               <ScanFace size={16} className="mr-1.5" />
-              Ambil Gambar
+              {detecting ? 'Memproses...' : 'Ambil Gambar'}
             </Button>
             <Button variant="outline" onClick={handleStopCamera}>
               Tutup Kamera
             </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* Preview */}
+      {previewUrl && (
+        <Card className="p-4">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Preview Foto Wajah</h3>
+          <div className="flex flex-col items-center gap-3">
+            <div className="relative rounded-xl overflow-hidden border-2 border-sky-200 bg-gray-50">
+              <img src={previewUrl} alt="Preview wajah" className="max-h-[300px] object-contain" />
+              {detectScore !== null && (
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">
+                  <p className="text-sm text-white font-medium text-center">
+                    Wajah terdeteksi — Skor: {Math.round(detectScore * 100)}%
+                  </p>
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-gray-500">Pastikan wajah terlihat jelas sebelum mendaftarkan</p>
+            <div className="flex gap-3 w-full max-w-xs">
+              <Button variant="outline" onClick={handleCancelPreview} className="flex-1">
+                Ulangi
+              </Button>
+              <Button onClick={pendingImage ? handleUploadSubmit : handleRegister} loading={registerMutation.isPending} className="flex-1">
+                <CheckCircle2 size={16} className="mr-1.5" /> Daftarkan Wajah
+              </Button>
+            </div>
           </div>
         </Card>
       )}

@@ -26,28 +26,39 @@ export function useFaceRecognition() {
   const [isReady, setIsReady] = useState(false)
   const [faceDetected, setFaceDetected] = useState(false)
   const [faceScore, setFaceScore] = useState(0)
+  const [error, setError] = useState<string | null>(null)
   const detectingRef = useRef(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
 
   const startCamera = useCallback(async (): Promise<boolean> => {
+    setError(null)
     try {
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: isMobile ? 320 : 480 },
-          height: { ideal: isMobile ? 240 : 360 },
+          width: { ideal: 640 },
+          height: { ideal: 480 },
           facingMode: 'user',
         },
       })
       streamRef.current = stream
       if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
+        const video = videoRef.current
+        video.srcObject = stream
+        await video.play()
         setIsReady(true)
         return true
       }
+      stream.getTracks().forEach((t) => t.stop())
       return false
-    } catch {
+    } catch (err: any) {
+      const msg = err?.name === 'NotAllowedError'
+        ? 'Izin kamera ditolak. Berikan izin akses kamera di browser.'
+        : err?.name === 'NotFoundError'
+        ? 'Tidak ada kamera yang ditemukan.'
+        : err?.name === 'NotReadableError'
+        ? 'Kamera sedang digunakan aplikasi lain.'
+        : 'Gagal mengakses kamera.'
+      setError(msg)
       return false
     }
   }, [])
@@ -104,7 +115,7 @@ export function useFaceRecognition() {
           setFaceScore(0)
         }
       } catch {
-        // ignore
+        // ignore detection errors during streaming
       }
     }, 600)
   }, [])
@@ -129,6 +140,31 @@ export function useFaceRecognition() {
     return { detected: false }
   }, [])
 
+  const captureImage = useCallback((): File | null => {
+    const video = videoRef.current
+    if (!video || video.readyState !== 4) return null
+
+    const c = document.createElement('canvas')
+    c.width = video.videoWidth
+    c.height = video.videoHeight
+    const ctx = c.getContext('2d')
+    if (!ctx) return null
+
+    ctx.translate(c.width, 0)
+    ctx.scale(-1, 1)
+    ctx.drawImage(video, 0, 0, c.width, c.height)
+
+    return new Promise<File | null>((resolve) => {
+      c.toBlob((blob) => {
+        if (blob) {
+          resolve(new File([blob], 'face-capture.jpg', { type: 'image/jpeg', lastModified: Date.now() }))
+        } else {
+          resolve(null)
+        }
+      }, 'image/jpeg', 0.92)
+    }) as unknown as File | null
+  }, [])
+
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
@@ -142,11 +178,13 @@ export function useFaceRecognition() {
     isReady,
     faceDetected,
     faceScore,
+    error,
     startCamera,
     stopCamera,
     startDetection,
     stopDetection,
     captureFace,
+    captureImage,
   }
 }
 

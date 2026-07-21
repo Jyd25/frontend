@@ -109,9 +109,14 @@ export default function MainLayout() {
         </nav>
         <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-gray-100 bg-white">
           <Link to="/profile" className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors text-left" onClick={() => setSidebarOpen(false)}>
-            <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
-              {user.name?.charAt(0)?.toUpperCase()}
-            </div>
+            {user.employee?.photo ? (
+              <img src={user.employee.photo} alt={user.name}
+                className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+            ) : (
+              <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                {user.name?.charAt(0)?.toUpperCase()}
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <p className="text-[13px] font-medium text-gray-900 truncate">{user.name}</p>
               <p className="text-[11px] text-gray-500">{user.role?.name}</p>
@@ -129,9 +134,13 @@ export default function MainLayout() {
           <div className="flex items-center gap-2 sm:gap-4 ml-auto">
             <div className="flex items-center gap-2 sm:hidden">
               <Link to="/profile" className="flex items-center gap-2" onClick={() => setSidebarOpen(false)}>
-                <div className="w-7 h-7 rounded-full gradient-primary flex items-center justify-center text-white font-semibold text-[10px]">
-                  {user.name?.charAt(0)?.toUpperCase()}
-                </div>
+                {user.employee?.photo ? (
+                  <img src={user.employee.photo} alt={user.name} className="w-7 h-7 rounded-full object-cover" />
+                ) : (
+                  <div className="w-7 h-7 rounded-full gradient-primary flex items-center justify-center text-white font-semibold text-[10px]">
+                    {user.name?.charAt(0)?.toUpperCase()}
+                  </div>
+                )}
                 <span className="text-[11px] font-medium text-gray-600 max-w-[80px] truncate">{user.role?.name}</span>
               </Link>
             </div>
