@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Search, Calendar } from 'lucide-react'
+import { Search, Calendar, MapPin } from 'lucide-react'
 import { attendanceService } from '@/services/attendance.service'
 import { departmentService } from '@/services/department.service'
 import Button from '@/components/ui/Button'
@@ -70,6 +70,11 @@ export default function AttendanceListPage() {
       render: (item: Attendance) => item.employee?.name || '-',
     },
     {
+      key: 'nik',
+      header: 'NIK',
+      render: (item: Attendance) => item.employee?.nik || '-',
+    },
+    {
       key: 'date',
       header: 'Tanggal',
       render: (item: Attendance) => {
@@ -102,6 +107,19 @@ export default function AttendanceListPage() {
       key: 'location',
       header: 'Lokasi',
       render: (item: Attendance) => item.location?.location_name || '-',
+    },
+    {
+      key: 'location_details',
+      header: 'Detail Lokasi',
+      render: (item: Attendance) => {
+        if (!item.latitude || !item.longitude) return '-'
+        return (
+          <div className="flex items-center gap-1">
+            <MapPin size={12} className="text-gray-400" />
+            <span className="text-[11px]">{item.latitude.toFixed(4)}, {item.longitude.toFixed(4)}</span>
+          </div>
+        )
+      },
     },
     {
       key: 'face_status',

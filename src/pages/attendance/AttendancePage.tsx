@@ -579,14 +579,21 @@ export default function AttendancePage() {
                       }`}>
                         {faceResult?.score ?? 0}% Cocok
                       </div>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                <div className="flex justify-center gap-2 flex-wrap mb-6">
-                  {geoResult?.inside && <Badge variant="success">{geoResult.locationName}</Badge>}
-                  {geoResult && !geoResult.inside && <Badge variant="warning">Luar Radius</Badge>}
-                </div>
+                  <div className="flex justify-center gap-2 flex-wrap mb-6">
+                    {geoResult?.inside && <Badge variant="success"><MapPin size={12} className="mr-1" />{geoResult.locationName}</Badge>}
+                    {geoResult && !geoResult.inside && (
+                      <Badge variant="warning">
+                        <MapPin size={12} className="mr-1" /> Luar Radius
+                        <span className="block text-[10px] mt-1 text-gray-600">
+                          {geoResult.locationName || 'Lokasi'} ({geoResult.distance !== null ? `${geoResult.distance}m` : ''})
+                        </span>
+                      </Badge>
+                    )}
+                  </div>
                 <Button variant="outline" onClick={() => { setStep('idle'); queryClient.invalidateQueries({ queryKey: ['attendance-today'] }) }}>
                   Tutup
                 </Button>
@@ -648,7 +655,20 @@ export default function AttendancePage() {
                   {[
                     { icon: Clock, label: 'Jam Masuk', value: formatTime(todayAttendance.check_in_time), color: 'text-sky-500' },
                     { icon: Clock, label: 'Jam Pulang', value: formatTime(todayAttendance.check_out_time), color: 'text-orange-500' },
-                    { icon: MapPin, label: 'Lokasi', value: todayAttendance.location_status === 'Inside Radius' ? (todayAttendance.location?.location_name || 'Di dalam radius') : todayAttendance.location_status === 'Outside Radius' ? `Luar Radius — ${todayAttendance.location?.location_name || '-'}` : (todayAttendance.location_status || '-'), color: 'text-emerald-500' },
+                    { 
+                      icon: MapPin, 
+                      label: 'Lokasi', 
+                      value: todayAttendance.location_status === 'Inside Radius' ? `
+                          ✅ ${todayAttendance.location?.location_name || 'Di dalam radius'}
+                          ${todayAttendance.location?.address ? ` (${todayAttendance.location.address})` : ''}
+                          ${todayAttendance.latitude && todayAttendance.longitude ? `\n📍 [${todayAttendance.latitude.toFixed(6)}, ${todayAttendance.longitude.toFixed(6)}]` : ''}`
+                        : todayAttendance.location_status === 'Outside Radius' ? `
+                          ❌ ${todayAttendance.location?.location_name || '-'}
+                          ${todayAttendance.latitude && todayAttendance.longitude ? ` (${todayAttendance.latitude.toFixed(4)}, ${todayAttendance.longitude.toFixed(4)})` : ''}
+                          ${todayAttendance.location?.address ? ` — ${todayAttendance.location.address}` : ''}`
+                        : (todayAttendance.location_status || '-'), 
+                      color: 'text-emerald-500'
+                    },
                   ].map((item) => (
                     <div key={item.label} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
                       <div className="p-1.5 rounded-md bg-gray-100">

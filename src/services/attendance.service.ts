@@ -6,11 +6,22 @@ export const attendanceService = {
     const { data } = await api.get<ApiResponse<Attendance | null>>('/attendances/today')
     return data.data
   },
-  checkIn: async (payload: { latitude: number; longitude: number; location_id?: number; face_score?: number; face_status?: string; photo_data?: string }) => {
+  checkIn: async (payload: {
+    latitude: number;
+    longitude: number;
+    location_id?: number;
+    face_score?: number;
+    face_status?: string;
+    photo_data?: string;
+  }) => {
     const { data } = await api.post<ApiResponse<Attendance>>('/attendances/check-in', payload)
     return data.data
   },
-  checkOut: async (payload?: { face_score?: number; face_status?: string; photo_data?: string }) => {
+  checkOut: async (payload?: {
+    face_score?: number;
+    face_status?: string;
+    photo_data?: string;
+  }) => {
     const { data } = await api.post<ApiResponse<Attendance>>('/attendances/check-out', payload || {})
     return data.data
   },
