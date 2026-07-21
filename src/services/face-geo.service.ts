@@ -42,7 +42,7 @@ export const faceService = {
       const fd = new FormData()
       fd.append('employee_id', String(employeeId))
       fd.append('descriptor', JSON.stringify(descriptor))
-      fd.append('force', 'true')
+      fd.append('force', '1')
       fd.append('image', image)
       const { data } = await api.post('/faces/register', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },

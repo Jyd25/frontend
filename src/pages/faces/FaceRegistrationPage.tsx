@@ -103,26 +103,24 @@ export default function FaceRegistrationPage() {
   const handleRegister = useCallback(async () => {
     if (!selectedEmployeeId || !captureResult?.descriptor) return
     const arr = descriptorToArray(captureResult.descriptor)
-    registerMutation.mutate({ employeeId: selectedEmployeeId, descriptor: arr })
-  }, [selectedEmployeeId, captureResult, registerMutation])
+    const imageFile = await face.captureImage()
+    registerMutation.mutate({ employeeId: selectedEmployeeId, descriptor: arr, image: imageFile ?? undefined })
+  }, [selectedEmployeeId, captureResult, registerMutation, face])
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !selectedEmployeeId) return
 
-    const faceapi = await import('@vladmandic/face-api')
+    const url = URL.createObjectURL(file)
     const img = new Image()
-    img.src = URL.createObjectURL(file)
+    img.src = url
     await new Promise((resolve) => { img.onload = resolve })
 
-    const detection = await faceapi
-      .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 }))
-      .withFaceLandmarks()
-      .withFaceDescriptor()
+    const detection = await face.detectFromImage(img)
 
-    URL.revokeObjectURL(img.src)
+    URL.revokeObjectURL(url)
 
-    if (!detection) {
+    if (!detection.detected || !detection.descriptor) {
       toast.error('Tidak ada wajah terdeteksi di foto')
       return
     }
@@ -130,7 +128,7 @@ export default function FaceRegistrationPage() {
     const arr = Array.from(detection.descriptor)
     registerMutation.mutate({ employeeId: selectedEmployeeId, descriptor: arr, image: file })
     e.target.value = ''
-  }, [selectedEmployeeId, registerMutation])
+  }, [selectedEmployeeId, registerMutation, face])
 
   const handleStopCamera = () => {
     face.stopCamera()
