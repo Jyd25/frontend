@@ -30,7 +30,7 @@ function getStatusBadge(status?: string) {
 
 type Step = 'idle' | 'face' | 'submitting' | 'done'
 
-const CHECKIN_DEADLINE_HOUR = 9
+const CHECKIN_DEADLINE_HOUR = 10
 const CHECKOUT_DEADLINE_HOUR = 20
 const AUTO_CAPTURE_SCORE = 0.75
 const CAPTURE_STABLE_MS = 1500
@@ -43,7 +43,7 @@ export default function AttendancePage() {
   const [step, setStep] = useState<Step>('idle')
   const [modelsReady, setModelsReady] = useState(false)
   const [faceResult, setFaceResult] = useState<{ matched: boolean; score: number } | null>(null)
-  const [geoResult, setGeoResult] = useState<{ inside: boolean; distance: number | null; locationName: string | null; locationId: number | null } | null>(null)
+  const [geoResult, setGeoResult] = useState<{ inside: boolean; distance: number | null; locationName: string | null; locationId: number | null; latitude: number | null; longitude: number | null } | null>(null)
   const [actionType, setActionType] = useState<'check_in' | 'check_out'>('check_in')
   const [now, setNow] = useState(new Date())
   const [cameraError, setCameraError] = useState<string | null>(null)
@@ -111,9 +111,11 @@ export default function AttendancePage() {
         distance: result.distance,
         locationName: result.location_name,
         locationId,
+        latitude: result.latitude,
+        longitude: result.longitude,
       })
     } catch {
-      setGeoResult({ inside: false, distance: null, locationName: null, locationId: null })
+      setGeoResult({ inside: false, distance: null, locationName: null, locationId: null, latitude: null, longitude: null })
     }
     if (actionType === 'check_in') {
       checkInMutation.mutate({
@@ -160,30 +162,24 @@ export default function AttendancePage() {
     }
     setCapturedFacePhoto(imageDataUri)
 
-      toast.info('Memverifikasi wajah...')
+    toast.info('Memverifikasi wajah...')
     try {
       const verifyResult = await faceService.verify(employeeId!, descriptorToArray(result.descriptor))
       setFaceResult({ matched: verifyResult.matched, score: verifyResult.score })
 
       if ((verifyResult as any).no_face_data) {
-        toast.warning('Data wajah belum terdaftar. Verifikasi dilewati. Silakan daftarkan wajah di menu Update Wajah.', { duration: 6000 })
+        toast.warning('Data wajah belum terdaftar. Verifikasi dilewati.', { duration: 6000 })
       } else if (!verifyResult.matched) {
-        toast.error(`Wajah tidak cocok (skor: ${verifyResult.score}%)`)
-        face.stopCamera()
-        setStep('idle')
-        setIsProcessing(false)
-        return
+        toast.warning(`Wajah tidak cocok (skor: ${verifyResult.score}%). Presensi tetap dilanjutkan.`, { duration: 5000 })
+      } else {
+        toast.success('Wajah cocok! Melanjutkan...')
       }
-
-      toast.success('Verifikasi wajah selesai! Mengambil lokasi...')
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Gagal memverifikasi wajah')
-      face.stopCamera()
-      setStep('idle')
-      setIsProcessing(false)
-      return
+      setFaceResult({ matched: false, score: 0 })
     }
 
+    toast.info('Mengambil lokasi...')
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         face.stopCamera()
@@ -378,8 +374,8 @@ export default function AttendancePage() {
                       ? 'Anda sudah melakukan check-in dan check-out hari ini'
                       : 'Menunggu waktu check-out'
                     : isPastCheckinDeadline
-                      ? 'Batas check-in 09:00 sudah lewat. Anda masih bisa check-in dengan status terlambat.'
-                      : 'Lakukan check-in untuk memulai hari kerja'
+                      ? 'Batas check-in 10:00 sudah lewat. Anda masih bisa check-in dengan status terlambat.'
+                       : 'Lakukan check-in untuk memulai hari kerja'
                   }
                 </p>
 
@@ -388,7 +384,7 @@ export default function AttendancePage() {
                     <div className="flex items-start gap-2">
                       <AlertTriangle size={15} className="text-amber-600 mt-0.5 flex-shrink-0" />
                       <div>
-                        <p className="text-sm font-medium text-amber-800">Batas check-in 09:00 sudah lewat</p>
+                        <p className="text-sm font-medium text-amber-800">Batas check-in 10:00 sudah lewat</p>
                         <p className="text-xs text-amber-600/80 mt-0.5">Status akan tercatat sebagai <strong>Terlambat</strong>.</p>
                       </div>
                     </div>
@@ -553,7 +549,7 @@ export default function AttendancePage() {
                   {geoResult && (
                     geoResult.inside
                       ? <Badge variant="success"><MapPin size={12} className="mr-1" />{geoResult.locationName} ({geoResult.distance}m)</Badge>
-                      : <Badge variant="warning"><MapPin size={12} className="mr-1" />{geoResult.distance !== null ? `${geoResult.distance}m dari ${geoResult.locationName}` : 'Di luar radius'}</Badge>
+                      : <Badge variant="warning"><MapPin size={12} className="mr-1" />Luar Radius — {geoResult.locationName || 'Lokasi'} ({geoResult.distance !== null ? `${geoResult.distance}m` : ''}){geoResult.latitude && geoResult.longitude ? ` [${geoResult.latitude.toFixed(6)}, ${geoResult.longitude.toFixed(6)}]` : ''}</Badge>
                   )}
                 </div>
               </>
@@ -608,7 +604,7 @@ export default function AttendancePage() {
                 {[
                   { icon: Clock, label: 'Jam Masuk', value: formatTime(todayAttendance.check_in_time), color: 'text-sky-500' },
                   { icon: Clock, label: 'Jam Pulang', value: formatTime(todayAttendance.check_out_time), color: 'text-orange-500' },
-                  { icon: MapPin, label: 'Lokasi', value: todayAttendance.location_status || '-', color: 'text-emerald-500' },
+                  { icon: MapPin, label: 'Lokasi', value: todayAttendance.location_status === 'inside_radius' || todayAttendance.location_status === 'Inside Radius' ? (todayAttendance.location?.location_name || 'Di dalam radius') : todayAttendance.location_status === 'outside_radius' || todayAttendance.location_status === 'Outside Radius' ? `Luar Radius — ${todayAttendance.location?.location_name || '-'}` : (todayAttendance.location_status || '-'), color: 'text-emerald-500' },
                   { icon: Fingerprint, label: 'Verifikasi', value: todayAttendance.face_status || '-', color: 'text-purple-500' },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
