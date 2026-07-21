@@ -306,6 +306,7 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
   const [showCamera, setShowCamera] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [pendingImage, setPendingImage] = useState<File | null>(null)
+  const [capturedDescriptor, setCapturedDescriptor] = useState<number[] | null>(null)
   const [detecting, setDetecting] = useState(false)
   const [detectScore, setDetectScore] = useState<number | null>(null)
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; face: FaceDataset | null }>({ open: false, face: null })
@@ -352,6 +353,7 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
   const cleanup = () => {
     setPreviewUrl(null)
     setPendingImage(null)
+    setCapturedDescriptor(null)
     setDetectScore(null)
     setDetecting(false)
     setShowCamera(false)
@@ -378,11 +380,12 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
       toast.error('Wajah tidak terdeteksi. Posisikan wajah tepat di tengah layar.')
       return
     }
-    const imageFile = face.captureImage()
+    const imageFile = await face.captureImage()
     face.stopDetection()
     setDetectScore(result.score ?? 0)
 
     if (imageFile) {
+      setCapturedDescriptor(descriptorToArray(result.descriptor))
       setPendingImage(imageFile)
       setPreviewUrl(URL.createObjectURL(imageFile))
     } else {
@@ -391,25 +394,10 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
     }
   }, [face])
 
-  const handleRegister = useCallback(() => {
-    if (!pendingImage) return
-    const faceapiModule = import('@vladmandic/face-api')
-    faceapiModule.then(async (faceapi) => {
-      const img = new Image()
-      img.src = previewUrl!
-      await new Promise((resolve) => { img.onload = resolve })
-      const detection = await faceapi
-        .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 }))
-        .withFaceLandmarks()
-        .withFaceDescriptor()
-      if (!detection) {
-        toast.error('Tidak ada wajah terdeteksi di foto')
-        return
-      }
-      const arr = Array.from(detection.descriptor)
-      registerMutation.mutate({ descriptor: arr, image: pendingImage })
-    })
-  }, [pendingImage, previewUrl, registerMutation])
+  const handleRegisterCamera = useCallback(() => {
+    if (!pendingImage || !capturedDescriptor) return
+    registerMutation.mutate({ descriptor: capturedDescriptor, image: pendingImage })
+  }, [pendingImage, capturedDescriptor, registerMutation])
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -417,6 +405,7 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
     setShowCamera(false)
     face.stopCamera()
     face.stopDetection()
+    setCapturedDescriptor(null)
     setDetectScore(null)
     setPendingImage(file)
     setPreviewUrl(URL.createObjectURL(file))
@@ -426,7 +415,7 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
   const handleUploadSubmit = useCallback(async () => {
     if (!pendingImage) return
     const faceapi = await import('@vladmandic/face-api')
-    const img = new Image()
+    const img = document.createElement('img')
     img.src = previewUrl!
     await new Promise((resolve) => { img.onload = resolve })
 
@@ -452,6 +441,7 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
   const handleCancelPreview = () => {
     setPreviewUrl(null)
     setPendingImage(null)
+    setCapturedDescriptor(null)
     setDetectScore(null)
     setDetecting(false)
     if (showCamera) {
@@ -566,9 +556,15 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
               <Button variant="outline" onClick={handleCancelPreview} className="flex-1">
                 Ulangi
               </Button>
-              <Button onClick={pendingImage ? handleUploadSubmit : handleRegister} loading={registerMutation.isPending} className="flex-1">
-                <CheckCircle2 size={16} className="mr-1.5" /> Daftarkan Wajah
-              </Button>
+              {capturedDescriptor ? (
+                <Button onClick={handleRegisterCamera} loading={registerMutation.isPending} className="flex-1">
+                  <CheckCircle2 size={16} className="mr-1.5" /> Daftarkan Wajah
+                </Button>
+              ) : pendingImage ? (
+                <Button onClick={handleUploadSubmit} loading={registerMutation.isPending} className="flex-1">
+                  <Upload size={16} className="mr-1.5" /> Daftarkan Wajah
+                </Button>
+              ) : null}
             </div>
           </div>
         </Card>

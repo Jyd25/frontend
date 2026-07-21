@@ -140,7 +140,7 @@ export function useFaceRecognition() {
     return { detected: false }
   }, [])
 
-  const captureImage = useCallback((): File | null => {
+  const captureImage = useCallback(async (): Promise<File | null> => {
     const video = videoRef.current
     if (!video || video.readyState !== 4) return null
 
@@ -162,7 +162,7 @@ export function useFaceRecognition() {
           resolve(null)
         }
       }, 'image/jpeg', 0.92)
-    }) as unknown as File | null
+    })
   }, [])
 
   useEffect(() => {
