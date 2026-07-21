@@ -84,6 +84,7 @@ export default function ProfilePage() {
 function ProfileEditTab({ employee }: { employee: any }) {
   const queryClient = useQueryClient()
   const { user, setUser } = useAuthStore()
+  const avatarInputRef = useRef<HTMLInputElement>(null)
 
   const [form, setForm] = useState({
     name: user?.name || '',
@@ -108,9 +109,53 @@ function ProfileEditTab({ employee }: { employee: any }) {
     onError: (e: any) => toast.error(e.response?.data?.message || 'Gagal memperbarui profil'),
   })
 
+  const avatarMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const fd = new FormData()
+      fd.append('photo', file)
+      const { data } = await api.put<ApiResponse<any>>('/profile', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      return data.data
+    },
+    onSuccess: (updatedUser) => {
+      setUser(updatedUser)
+      queryClient.invalidateQueries({ queryKey: ['profile-full'] })
+      queryClient.invalidateQueries({ queryKey: ['profile'] })
+      toast.success('Foto profil berhasil diperbarui')
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Gagal memperbarui foto profil'),
+  })
+
   return (
     <Card>
       <div className="space-y-5">
+        <div className="flex items-center gap-4">
+          <div className="relative group">
+            {user?.employee?.photo ? (
+              <img src={user.employee.photo} alt="Avatar"
+                className="w-20 h-20 rounded-full object-cover border-2 border-sky-200" />
+            ) : (
+              <div className="w-20 h-20 rounded-full gradient-primary flex items-center justify-center text-white text-2xl font-bold">
+                {user?.name?.charAt(0)?.toUpperCase()}
+              </div>
+            )}
+            <button onClick={() => avatarInputRef.current?.click()}
+              className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+              <Camera size={20} className="text-white" />
+            </button>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-900">Foto Profil</p>
+            <p className="text-xs text-gray-500">Klik foto untuk mengubah avatar</p>
+            <input ref={avatarInputRef} type="file" accept="image/*" className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) avatarMutation.mutate(file)
+                e.target.value = ''
+              }} />
+          </div>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Nama Lengkap" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} icon={<User size={16} />} />
           <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} icon={<Mail size={16} />} />
