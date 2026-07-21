@@ -49,6 +49,7 @@ export default function AttendancePage() {
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [countdown, setCountdown] = useState<number | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [capturedFacePhoto, setCapturedFacePhoto] = useState<string | null>(null)
 
   const faceDetectedSinceRef = useRef<number | null>(null)
   const autoCaptureTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -67,7 +68,7 @@ export default function AttendancePage() {
   })
 
   const checkInMutation = useMutation({
-    mutationFn: (payload: { latitude: number; longitude: number; location_id?: number }) =>
+    mutationFn: (payload: { latitude: number; longitude: number; location_id?: number; face_score?: number; face_status?: string; photo_data?: string }) =>
       attendanceService.checkIn(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance-today'] })
@@ -81,7 +82,8 @@ export default function AttendancePage() {
   })
 
   const checkOutMutation = useMutation({
-    mutationFn: attendanceService.checkOut,
+    mutationFn: (payload: { face_score?: number; face_status?: string; photo_data?: string }) =>
+      attendanceService.checkOut(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance-today'] })
       toast.success('Check-out berhasil!')
@@ -111,12 +113,22 @@ export default function AttendancePage() {
       setGeoResult({ inside: false, distance: null, locationName: null })
     }
     if (actionType === 'check_in') {
-      checkInMutation.mutate({ latitude: lat, longitude: lng })
+      checkInMutation.mutate({
+        latitude: lat,
+        longitude: lng,
+        face_score: faceResult?.score,
+        face_status: faceResult?.matched ? 'matched' : 'unmatched',
+        photo_data: capturedFacePhoto || undefined,
+      })
     } else {
-      checkOutMutation.mutate()
+      checkOutMutation.mutate({
+        face_score: faceResult?.score,
+        face_status: faceResult?.matched ? 'matched' : 'unmatched',
+        photo_data: capturedFacePhoto || undefined,
+      })
     }
     setIsProcessing(false)
-  }, [actionType, checkInMutation, checkOutMutation])
+  }, [actionType, checkInMutation, checkOutMutation, faceResult, capturedFacePhoto])
 
   const doCaptureAndVerify = useCallback(async () => {
     if (isProcessing) return
@@ -131,6 +143,18 @@ export default function AttendancePage() {
       setIsProcessing(false)
       return
     }
+
+    toast.info('Menyimpan gambar wajah...')
+    const imageFile = await face.captureImage()
+    let imageDataUri: string | null = null
+    if (imageFile) {
+      imageDataUri = await new Promise<string>((resolve) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(reader.result as string)
+        reader.readAsDataURL(imageFile)
+      })
+    }
+    setCapturedFacePhoto(imageDataUri)
 
       toast.info('Memverifikasi wajah...')
     try {
@@ -181,6 +205,7 @@ export default function AttendancePage() {
     setGeoResult(null)
     setCameraError(null)
     setCountdown(null)
+    setCapturedFacePhoto(null)
     faceDetectedSinceRef.current = null
     setStep('face')
 
@@ -248,6 +273,7 @@ export default function AttendancePage() {
     setGeoResult(null)
     setCameraError(null)
     setCountdown(null)
+    setCapturedFacePhoto(null)
     faceDetectedSinceRef.current = null
     if (autoCaptureTimerRef.current) clearTimeout(autoCaptureTimerRef.current)
   }
