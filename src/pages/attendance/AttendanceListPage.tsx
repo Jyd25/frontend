@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Search, Calendar, MapPin } from 'lucide-react'
 import { attendanceService } from '@/services/attendance.service'
 import { departmentService } from '@/services/department.service'
+import { useAuthStore } from '@/stores/useAuthStore'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Card from '@/components/ui/Card'
@@ -43,6 +44,8 @@ export default function AttendanceListPage() {
   const [dateFilter, setDateFilter] = useState('')
   const [deptFilter, setDeptFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const { user } = useAuthStore()
+  const isStaff = ['Guru', 'Karyawan'].includes(user?.role?.name ?? '')
 
   const { data: departments } = useQuery({
     queryKey: ['departments-select'],
@@ -64,7 +67,7 @@ export default function AttendanceListPage() {
   })
 
 const columns = [
-    {
+    ...(!isStaff ? [{
       key: 'employee_name',
       header: 'Karyawan',
       render: (item: Attendance) => {
@@ -85,7 +88,7 @@ const columns = [
           </div>
         )
       },
-    },
+    }] : []),
     {
       key: 'date',
       header: 'Tanggal',
@@ -180,28 +183,32 @@ const columns = [
               className="w-48"
             />
           </div>
-          <select
-            value={deptFilter}
-            onChange={(e) => { setDeptFilter(e.target.value); setPage(1) }}
-            className="px-3 py-2 border border-gray-200/80 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400"
-          >
-            <option value="">Semua Departemen</option>
-            {deptList.map((d) => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
-            className="px-3 py-2 border border-gray-200/80 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400"
-          >
-            <option value="">Semua Status</option>
-            <option value="present">Hadir</option>
-            <option value="late">Terlambat</option>
-            <option value="absent">Alpha</option>
-            <option value="permission">Izin</option>
-            <option value="sick">Sakit</option>
-          </select>
+          {!isStaff && (
+            <>
+              <select
+                value={deptFilter}
+                onChange={(e) => { setDeptFilter(e.target.value); setPage(1) }}
+                className="px-3 py-2 border border-gray-200/80 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400"
+              >
+                <option value="">Semua Departemen</option>
+                {deptList.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+              <select
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
+                className="px-3 py-2 border border-gray-200/80 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400"
+              >
+                <option value="">Semua Status</option>
+                <option value="present">Hadir</option>
+                <option value="late">Terlambat</option>
+                <option value="absent">Alpha</option>
+                <option value="permission">Izin</option>
+                <option value="sick">Sakit</option>
+              </select>
+            </>
+          )}
         </div>
 
         <DataTable columns={columns} data={attendances} loading={isLoading} emptyMessage="Tidak ada data kehadiran" />
