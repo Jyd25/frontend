@@ -394,7 +394,7 @@ export default function AttendancePage() {
                       ? 'Anda sudah melakukan check-in dan check-out hari ini'
                       : 'Menunggu waktu check-out'
                     : isPastCheckinDeadline
-                      ? 'Batas check-in 10:00 sudah lewat. Anda masih bisa check-in dengan status terlambat.'
+                      ? 'Lewat pukul 10:00. Presensi akan otomatis check-in sekaligus check-out dengan status Terlambat.'
                        : 'Lakukan check-in untuk memulai hari kerja'
                   }
                 </p>
@@ -404,8 +404,8 @@ export default function AttendancePage() {
                     <div className="flex items-start gap-2">
                       <AlertTriangle size={15} className="text-amber-600 mt-0.5 flex-shrink-0" />
                       <div>
-                        <p className="text-sm font-medium text-amber-800">Batas check-in 10:00 sudah lewat</p>
-                        <p className="text-xs text-amber-600/80 mt-0.5">Status akan tercatat sebagai <strong>Terlambat</strong>.</p>
+                        <p className="text-sm font-medium text-amber-800">Presensi Terlambat</p>
+                        <p className="text-xs text-amber-600/80 mt-0.5">Status akan tercatat sebagai <strong>Terlambat</strong> dan langsung selesai (auto check-out).</p>
                       </div>
                     </div>
                   </div>
@@ -445,7 +445,7 @@ export default function AttendancePage() {
                 <div className="space-y-3">
                   {!isCheckedIn && modelsReady && (
                     <Button size="lg" onClick={() => startAttendance('check_in')} className="w-full sm:w-auto min-w-[200px]">
-                      <Fingerprint size={18} className="mr-2" /> Check In
+                      <Fingerprint size={18} className="mr-2" /> {isPastCheckinDeadline ? 'Presensi' : 'Check In'}
                     </Button>
                   )}
                   {!isCheckedIn && !modelsReady && (
