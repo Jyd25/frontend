@@ -52,6 +52,7 @@ export default function AttendancePage() {
   const [countdown, setCountdown] = useState<number | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [capturedFacePhoto, setCapturedFacePhoto] = useState<string | null>(null)
+  const [isLatePresensi, setIsLatePresensi] = useState(false)
 
   const faceDetectedSinceRef = useRef<number | null>(null)
   const autoCaptureTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -226,6 +227,7 @@ export default function AttendancePage() {
     setCameraError(null)
     setCountdown(null)
     setCapturedFacePhoto(null)
+    setIsLatePresensi(type === 'check_in' && new Date().getHours() >= 10)
     faceDetectedSinceRef.current = null
     setStep('face')
 
@@ -579,8 +581,20 @@ export default function AttendancePage() {
             {step === 'done' && (
               <>
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  {actionType === 'check_in' ? 'Check-In Berhasil!' : 'Check-Out Berhasil!'}
+                  {isLatePresensi ? 'Presensi Terlambat!' : actionType === 'check_in' ? 'Check-In Berhasil!' : 'Check-Out Berhasil!'}
                 </h2>
+
+                {isLatePresensi && (
+                  <div className="bg-amber-50 border border-amber-200/60 rounded-lg p-3 mb-4 max-w-sm mx-auto text-left">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle size={15} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-amber-800">Check-in kosong</p>
+                        <p className="text-xs text-amber-600/80 mt-0.5">Anda terlambat. Jam masuk kosong dan perlu disetujui oleh admin.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Face photo with score */}
                 {capturedFacePhoto && (
@@ -693,20 +707,28 @@ export default function AttendancePage() {
                 )}
 
                 <div className="space-y-0 divide-y divide-gray-100">
-                  {[
-                    { icon: Clock, label: 'Jam Masuk', value: formatTime(todayAttendance.check_in_time), color: 'text-sky-500' },
-                    { icon: Clock, label: 'Jam Pulang', value: formatTime(todayAttendance.check_out_time), color: 'text-orange-500' },
-                  ].map((item) => (
-                    <div key={item.label} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                      <div className="p-1.5 rounded-md bg-gray-100">
-                        <item.icon size={14} className={item.color} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wide">{item.label}</p>
-                        <p className="text-sm font-medium text-gray-700 truncate">{item.value}</p>
-                      </div>
+                  <div className="flex items-center gap-3 py-3">
+                    <div className="p-1.5 rounded-md bg-gray-100">
+                      <Clock size={14} className="text-sky-500" />
                     </div>
-                  ))}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] text-gray-400 uppercase tracking-wide">Jam Masuk</p>
+                      {todayAttendance.check_in_time ? (
+                        <p className="text-sm font-medium text-gray-700">{formatTime(todayAttendance.check_in_time)}</p>
+                      ) : (
+                        <p className="text-sm font-medium text-amber-600">Kosong — menunggu admin</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 py-3">
+                    <div className="p-1.5 rounded-md bg-gray-100">
+                      <Clock size={14} className="text-orange-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] text-gray-400 uppercase tracking-wide">Jam Pulang</p>
+                      <p className="text-sm font-medium text-gray-700">{formatTime(todayAttendance.check_out_time)}</p>
+                    </div>
+                  </div>
 
                   <div className="flex items-start gap-3 py-3">
                     <div className="p-1.5 rounded-md bg-gray-100">
@@ -734,6 +756,12 @@ export default function AttendancePage() {
                     {getStatusBadge(todayAttendance.attendance_status)}
                   </div>
                 </div>
+
+                {!todayAttendance.check_in_time && todayAttendance.check_out_time && (
+                  <div className="bg-amber-50 border border-amber-200/60 rounded-lg p-2.5 text-xs text-amber-700">
+                    Jam masuk kosong — menunggu disetujui admin
+                  </div>
+                )}
 
                 {todayAttendance.latitude && todayAttendance.longitude && todayAttendance.location && (
                   <div className="pt-2">
