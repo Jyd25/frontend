@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { MapPin, Clock, CheckCircle2, LogOut, Camera, CameraOff, Fingerprint, Loader2, AlertTriangle, ChevronRight, CircleDot } from 'lucide-react'
+import { MapPin, Clock, CheckCircle2, LogOut, Camera, CameraOff, Fingerprint, Loader2, AlertTriangle, ChevronRight, CircleDot, Navigation } from 'lucide-react'
 import { attendanceService } from '@/services/attendance.service'
 import { faceService, geolocationService } from '@/services/face-geo.service'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { loadModels, useFaceRecognition, descriptorToArray } from '@/hooks/useFaceRecognition'
 import { useAttendanceReminder } from '@/hooks/useAttendanceReminder'
+import { reverseGeocode } from '@/lib/geocode'
+import LocationMap from '@/components/ui/LocationMap'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
@@ -43,7 +45,7 @@ export default function AttendancePage() {
   const [step, setStep] = useState<Step>('idle')
   const [modelsReady, setModelsReady] = useState(false)
   const [faceResult, setFaceResult] = useState<{ matched: boolean; score: number } | null>(null)
-  const [geoResult, setGeoResult] = useState<{ inside: boolean; distance: number | null; locationName: string | null; locationId: number | null; latitude: number | null; longitude: number | null } | null>(null)
+  const [geoResult, setGeoResult] = useState<{ inside: boolean; distance: number | null; locationName: string | null; locationId: number | null; latitude: number | null; longitude: number | null; address: string | null; locationLat: number | null; locationLng: number | null; radius: number | null } | null>(null)
   const [actionType, setActionType] = useState<'check_in' | 'check_out'>('check_in')
   const [now, setNow] = useState(new Date())
   const [cameraError, setCameraError] = useState<string | null>(null)
@@ -103,9 +105,20 @@ export default function AttendancePage() {
     setStep('submitting')
     setIsProcessing(true)
     let locationId: number | null = null
+    let address: string | null = null
+    let locLat: number | null = null
+    let locLng: number | null = null
+    let locRadius: number | null = null
     try {
-      const result = await geolocationService.validate(lat, lng)
+      const [result, geoAddr] = await Promise.all([
+        geolocationService.validate(lat, lng),
+        reverseGeocode(lat, lng),
+      ])
       locationId = result.location_id ?? null
+      address = geoAddr
+      locLat = result.latitude
+      locLng = result.longitude
+      locRadius = result.radius
       setGeoResult({
         inside: result.inside_radius,
         distance: result.distance,
@@ -113,9 +126,16 @@ export default function AttendancePage() {
         locationId,
         latitude: result.latitude,
         longitude: result.longitude,
+        address,
+        locationLat: locLat,
+        locationLng: locLng,
+        radius: locRadius,
       })
     } catch {
-      setGeoResult({ inside: false, distance: null, locationName: null, locationId: null, latitude: null, longitude: null })
+      try {
+        address = await reverseGeocode(lat, lng)
+      } catch {}
+      setGeoResult({ inside: false, distance: null, locationName: null, locationId: null, latitude: null, longitude: null, address, locationLat: null, locationLng: null, radius: null })
     }
     if (actionType === 'check_in') {
       checkInMutation.mutate({
@@ -583,7 +603,7 @@ export default function AttendancePage() {
                     </div>
                   )}
 
-                  <div className="flex justify-center gap-2 flex-wrap mb-6">
+                  <div className="flex justify-center gap-2 flex-wrap mb-4">
                     {geoResult?.inside && <Badge variant="success"><MapPin size={12} className="mr-1" />{geoResult.locationName}</Badge>}
                     {geoResult && !geoResult.inside && (
                       <Badge variant="warning">
@@ -594,6 +614,28 @@ export default function AttendancePage() {
                       </Badge>
                     )}
                   </div>
+
+                  {geoResult?.latitude && geoResult?.longitude && (
+                    <div className="mb-4 max-w-md mx-auto">
+                      {geoResult.address && (
+                        <div className="flex items-start gap-2 text-left bg-gray-50 rounded-lg p-3 mb-3">
+                          <Navigation size={14} className="text-sky-500 mt-0.5 flex-shrink-0" />
+                          <p className="text-xs text-gray-600 leading-relaxed">{geoResult.address}</p>
+                        </div>
+                      )}
+                      {geoResult.locationLat && geoResult.locationLng && geoResult.radius && (
+                        <LocationMap
+                          userLat={geoResult.latitude}
+                          userLng={geoResult.longitude}
+                          centerLat={geoResult.locationLat}
+                          centerLng={geoResult.locationLng}
+                          radius={geoResult.radius}
+                          locationName={geoResult.locationName || 'Lokasi'}
+                        />
+                      )}
+                    </div>
+                  )}
+
                 <Button variant="outline" onClick={() => { setStep('idle'); queryClient.invalidateQueries({ queryKey: ['attendance-today'] }) }}>
                   Tutup
                 </Button>
@@ -627,8 +669,7 @@ export default function AttendancePage() {
           <Card title="Hari Ini">
             {todayAttendance ? (
               <div className="space-y-3">
-                {/* Face photo from DB */}
-                {(todayAttendance as any).photo_data && (
+                {todayAttendance.photo_data && (
                   <div className="flex justify-center">
                     <div className={`relative rounded-xl overflow-hidden border-2 ${
                       todayAttendance.face_status === 'Matched' || todayAttendance.face_status === 'matched'
@@ -636,7 +677,7 @@ export default function AttendancePage() {
                         : 'border-amber-400'
                     }`}>
                       <img
-                        src={(todayAttendance as any).photo_data}
+                        src={todayAttendance.photo_data}
                         alt="Verifikasi Wajah"
                         className="w-32 h-32 object-cover"
                       />
@@ -655,20 +696,6 @@ export default function AttendancePage() {
                   {[
                     { icon: Clock, label: 'Jam Masuk', value: formatTime(todayAttendance.check_in_time), color: 'text-sky-500' },
                     { icon: Clock, label: 'Jam Pulang', value: formatTime(todayAttendance.check_out_time), color: 'text-orange-500' },
-                    { 
-                      icon: MapPin, 
-                      label: 'Lokasi', 
-                      value: todayAttendance.location_status === 'Inside Radius' ? `
-                          ✅ ${todayAttendance.location?.location_name || 'Di dalam radius'}
-                          ${todayAttendance.location?.address ? ` (${todayAttendance.location.address})` : ''}
-                          ${todayAttendance.latitude && todayAttendance.longitude ? `\n📍 [${todayAttendance.latitude.toFixed(6)}, ${todayAttendance.longitude.toFixed(6)}]` : ''}`
-                        : todayAttendance.location_status === 'Outside Radius' ? `
-                          ❌ ${todayAttendance.location?.location_name || '-'}
-                          ${todayAttendance.latitude && todayAttendance.longitude ? ` (${todayAttendance.latitude.toFixed(4)}, ${todayAttendance.longitude.toFixed(4)})` : ''}
-                          ${todayAttendance.location?.address ? ` — ${todayAttendance.location.address}` : ''}`
-                        : (todayAttendance.location_status || '-'), 
-                      color: 'text-emerald-500'
-                    },
                   ].map((item) => (
                     <div key={item.label} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
                       <div className="p-1.5 rounded-md bg-gray-100">
@@ -680,11 +707,46 @@ export default function AttendancePage() {
                       </div>
                     </div>
                   ))}
+
+                  <div className="flex items-start gap-3 py-3">
+                    <div className="p-1.5 rounded-md bg-gray-100">
+                      <MapPin size={14} className="text-emerald-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] text-gray-400 uppercase tracking-wide mb-1">Lokasi</p>
+                      {todayAttendance.location_status === 'Inside Radius' ? (
+                        <Badge variant="success" className="text-[11px]">Di Dalam Radius</Badge>
+                      ) : (
+                        <Badge variant="warning" className="text-[11px]">Luar Radius</Badge>
+                      )}
+                      <p className="text-xs text-gray-600 mt-1">{todayAttendance.location?.location_name || '-'}</p>
+                      {todayAttendance.distance != null && (
+                        <p className="text-[11px] text-gray-400 mt-0.5">Jarak: {Math.round(todayAttendance.distance)}m</p>
+                      )}
+                      {todayAttendance.latitude && todayAttendance.longitude && (
+                        <p className="text-[10px] text-gray-400 mt-0.5 font-mono">{todayAttendance.latitude.toFixed(6)}, {todayAttendance.longitude.toFixed(6)}</p>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="pt-3">
                     <p className="text-[11px] text-gray-400 uppercase tracking-wide mb-1.5">Status</p>
                     {getStatusBadge(todayAttendance.attendance_status)}
                   </div>
                 </div>
+
+                {todayAttendance.latitude && todayAttendance.longitude && todayAttendance.location && (
+                  <div className="pt-2">
+                    <LocationMap
+                      userLat={todayAttendance.latitude}
+                      userLng={todayAttendance.longitude}
+                      centerLat={todayAttendance.location.latitude}
+                      centerLng={todayAttendance.location.longitude}
+                      radius={todayAttendance.location.radius}
+                      locationName={todayAttendance.location.location_name}
+                    />
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-center py-6">

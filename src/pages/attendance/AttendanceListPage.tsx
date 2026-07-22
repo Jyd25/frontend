@@ -63,16 +63,28 @@ export default function AttendanceListPage() {
     staleTime: 10000,
   })
 
-  const columns = [
+const columns = [
     {
-      key: 'employee',
+      key: 'employee_name',
       header: 'Karyawan',
-      render: (item: Attendance) => item.employee?.name || '-',
-    },
-    {
-      key: 'nik',
-      header: 'NIK',
-      render: (item: Attendance) => item.employee?.nik || '-',
+      render: (item: Attendance) => {
+        const photo = item.photo_data
+        return (
+          <div className="flex items-center gap-2">
+            {photo ? (
+              <img src={photo} alt="Wajah" className="w-8 h-8 rounded-full object-cover border border-gray-200 flex-shrink-0" />
+            ) : (
+              <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                {item.employee?.name?.charAt(0)?.toUpperCase() || '?'}
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">{item.employee?.name || '-'}</p>
+              <p className="text-[11px] text-gray-400">{item.employee?.nik || ''}</p>
+            </div>
+          </div>
+        )
+      },
     },
     {
       key: 'date',

@@ -108,13 +108,15 @@ export interface Attendance {
   longitude?: number
   distance?: number
   face_score?: number
-  location_status?: string
   face_status?: string
+  location_status?: string
   attendance_status?: string
   device?: string
   ip_address?: string
   remarks?: string
   photo_path?: string
+  photo_data?: string
+  work_duration?: string
   created_at: string
 }
 
