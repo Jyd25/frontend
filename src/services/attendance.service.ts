@@ -22,6 +22,10 @@ export const attendanceService = {
     face_score?: number;
     face_status?: string;
     photo_data?: string;
+    latitude?: number;
+    longitude?: number;
+    location_id?: number;
+    address?: string;
   }) => {
     const { data } = await api.post<ApiResponse<Attendance>>('/attendances/check-out', payload || {})
     return data.data

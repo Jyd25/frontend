@@ -19,7 +19,6 @@ function formatTime(iso?: string) {
 
 type Step = 'idle' | 'face' | 'submitting' | 'done'
 
-const CHECKIN_DEADLINE_HOUR = 10
 const AUTO_CAPTURE_SCORE = 0.75
 const CAPTURE_STABLE_MS = 1500
 
@@ -44,7 +43,6 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
   const [countdown, setCountdown] = useState<number | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [capturedFacePhoto, setCapturedFacePhoto] = useState<string | null>(null)
-  const [isLatePresensi, setIsLatePresensi] = useState(false)
 
   const faceDetectedSinceRef = useRef<number | null>(null)
   const autoCaptureTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -87,7 +85,7 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
   })
 
   const checkOutMutation = useMutation({
-    mutationFn: (payload: { face_score?: number; face_status?: string; photo_data?: string }) =>
+    mutationFn: (payload: { face_score?: number; face_status?: string; photo_data?: string; latitude?: number; longitude?: number; location_id?: number; address?: string }) =>
       attendanceService.checkOut(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance-today'] })
@@ -141,21 +139,28 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
       } catch {}
       setGeoResult({ inside: false, distance: null, locationName: null, locationId: null, latitude: null, longitude: null, address, locationLat: null, locationLng: null, radius: null })
     }
+
+    const facePayload = {
+      face_score: faceResult?.score,
+      face_status: faceResult?.matched ? 'matched' : 'unmatched',
+      photo_data: capturedFacePhoto || undefined,
+    }
+
     if (actionType === 'check_in') {
       checkInMutation.mutate({
         latitude: lat,
         longitude: lng,
         location_id: locationId ?? undefined,
-        face_score: faceResult?.score,
-        face_status: faceResult?.matched ? 'matched' : 'unmatched',
-        photo_data: capturedFacePhoto || undefined,
+        ...facePayload,
         address: address || undefined,
       })
     } else {
       checkOutMutation.mutate({
-        face_score: faceResult?.score,
-        face_status: faceResult?.matched ? 'matched' : 'unmatched',
-        photo_data: capturedFacePhoto || undefined,
+        ...facePayload,
+        latitude: lat,
+        longitude: lng,
+        location_id: locationId ?? undefined,
+        address: address || undefined,
       })
     }
     setIsProcessing(false)
@@ -231,7 +236,6 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
     setCameraError(null)
     setCountdown(null)
     setCapturedFacePhoto(null)
-    setIsLatePresensi(new Date().getHours() >= 10)
     faceDetectedSinceRef.current = null
     setStep('face')
 
@@ -307,41 +311,63 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
   const isCheckedOut = todayAttendance && todayAttendance.check_out_time
 
   const currentHour = now.getHours()
-  const isLatePresensiTime = currentHour >= CHECKIN_DEADLINE_HOUR
-  const shouldShowCheckOut = isCheckedIn || isLatePresensiTime
+  const currentMinute = now.getHours() * 60 + now.getMinutes()
+  const presensiStartMinute = 5 * 60
+  const presensiDeadlineMinute = 10 * 60
+
+  const isBeforePresensi = currentMinute < presensiStartMinute
+  const isPastDeadline = currentMinute >= presensiDeadlineMinute
+
+  const showCheckIn = !isCheckedIn && !isCheckedOut && !isBeforePresensi && !isPastDeadline
+  const showCheckOutLate = !isCheckedIn && !isCheckedOut && isPastDeadline
+  const showCheckOutNormal = isCheckedIn && !isCheckedOut
+  const showDone = isCheckedOut
 
   if (!open) return null
 
+  const doneTitle = actionType === 'check_in' ? 'Check-In Berhasil!' : 'Check-Out Berhasil!'
+
   return (
-    <Modal open={open} onClose={() => { handleCancel(); onClose() }} title={step === 'idle' ? 'Presensi Hari Ini' : step === 'done' ? (isLatePresensi ? 'Presensi Terlambat!' : actionType === 'check_in' ? 'Check-In Berhasil!' : 'Check-Out Berhasil!') : undefined}>
+    <Modal open={open} onClose={() => { handleCancel(); onClose() }} title={
+      step === 'idle' ? 'Presensi Hari Ini' : step === 'done' ? doneTitle : undefined
+    }>
       {/* IDLE */}
       {step === 'idle' && (
         <div className="text-center space-y-4">
           <div className="mb-2">
-            {isCheckedIn ? (
+            {showDone ? (
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-50 ring-1 ring-emerald-500/10">
                 <CheckCircle2 size={32} className="text-emerald-600" />
               </div>
+            ) : showCheckOutLate ? (
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-50 ring-1 ring-amber-500/10">
+                <AlertTriangle size={32} className="text-amber-600" />
+              </div>
+            ) : showCheckOutNormal ? (
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-sky-50 ring-1 ring-sky-500/10">
+                <LogOut size={32} className="text-sky-600" />
+              </div>
             ) : (
-              <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full ring-1 ${isLatePresensiTime ? 'bg-amber-50 ring-amber-500/10' : 'bg-gray-100 ring-gray-200'}`}>
-                {isLatePresensiTime ? <AlertTriangle size={32} className="text-amber-600" /> : <Clock size={32} className="text-gray-400" />}
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 ring-1 ring-gray-200">
+                <Clock size={32} className="text-gray-400" />
               </div>
             )}
           </div>
           <p className="text-sm text-gray-600">
-            {isCheckedIn
-              ? isCheckedOut
-                ? 'Anda sudah check-in dan check-out hari ini.'
-                : 'Menunggu waktu check-out.'
-              : isLatePresensiTime
-                ? 'Lewat pukul 10:00. Jam masuk tercatat kosong, langsung check-out.'
-                : 'Lakukan check-in untuk memulai hari kerja.'}
+            {showDone
+              ? 'Anda sudah check-in dan check-out hari ini.'
+              : showCheckOutNormal
+                ? 'Check-in sudah tercatat. Silakan lakukan check-out.'
+                : showCheckOutLate
+                  ? 'Lewat pukul 10:00. Silakan lakukan check-out (check-in kosong, menunggu admin).'
+                  : isBeforePresensi
+                    ? 'Presensi belum dibuka. Buka mulai pukul 05:00.'
+                    : 'Lakukan check-in untuk memulai hari kerja.'}
           </p>
-          {isCheckedIn && todayAttendance && (
+          {showCheckOutNormal && todayAttendance && (
             <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
               <Clock size={14} />
               <span>Masuk {formatTime(todayAttendance.check_in_time)}</span>
-              {getStatusBadgeInline(todayAttendance.attendance_status)}
             </div>
           )}
           {cameraError && (
@@ -353,27 +379,37 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
             </div>
           )}
           <div className="space-y-3">
-            {!isCheckedIn && !isCheckedOut && modelsReady && (
+            {showCheckIn && modelsReady && (
               <Button size="lg" onClick={() => startAttendance('check_in')} className="w-full min-w-[200px]">
-                <Fingerprint size={18} className="mr-2" /> {isLatePresensiTime ? 'Check Out' : 'Check In'}
+                <Fingerprint size={18} className="mr-2" /> Check In
               </Button>
             )}
-            {!isCheckedIn && !isCheckedOut && !modelsReady && (
+            {showCheckIn && !modelsReady && (
               <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
                 <Loader2 size={14} className="animate-spin" /> Memuat model wajah...
               </div>
             )}
-            {isCheckedIn && !isCheckedOut && modelsReady && (
+            {showCheckOutLate && modelsReady && (
               <Button size="lg" variant="danger" onClick={() => startAttendance('check_out')} className="w-full min-w-[200px]">
                 <LogOut size={18} className="mr-2" /> Check Out
               </Button>
             )}
-            {isCheckedIn && !isCheckedOut && !modelsReady && (
+            {showCheckOutLate && !modelsReady && (
               <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
                 <Loader2 size={14} className="animate-spin" /> Memuat model wajah...
               </div>
             )}
-            {isCheckedOut && (
+            {showCheckOutNormal && modelsReady && (
+              <Button size="lg" variant="danger" onClick={() => startAttendance('check_out')} className="w-full min-w-[200px]">
+                <LogOut size={18} className="mr-2" /> Check Out
+              </Button>
+            )}
+            {showCheckOutNormal && !modelsReady && (
+              <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
+                <Loader2 size={14} className="animate-spin" /> Memuat model wajah...
+              </div>
+            )}
+            {showDone && (
               <div className="flex items-center justify-center gap-2 text-emerald-600 text-sm font-medium">
                 <CheckCircle2 size={16} />
                 Check-out pukul {formatTime(todayAttendance.check_out_time)}
@@ -387,7 +423,7 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
       {step === 'face' && (
         <div className="text-center space-y-4">
           <p className="text-sm text-gray-500">
-            {isProcessing ? 'Memproses verifikasi...' : countdown !== null ? 'Wajah terdeteksi! Tunggu sebentar...' : 'Arahkan wajah ke kamera'}
+            {isProcessing ? 'Memproses verifikasi...' : countdown !== null ? 'Wajah terdeteksi! Tunggu sebentar...' : `Arahkan wajah ke kamera${actionType === 'check_out' ? ' (Check Out)' : ''}`}
           </p>
           <div className="relative inline-block rounded-xl overflow-hidden border-2 border-sky-300 w-full max-w-sm shadow-lg shadow-sky-500/10">
             <video ref={face.videoRef} autoPlay muted playsInline className="w-full aspect-[4/3] object-cover" style={{ transform: 'scaleX(-1)' }} />
@@ -435,7 +471,9 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
       {step === 'submitting' && (
         <div className="text-center space-y-4">
           <Loader2 size={36} className="mx-auto text-sky-500 animate-spin" />
-          <p className="text-sm font-medium text-gray-700">Memproses Kehadiran...</p>
+          <p className="text-sm font-medium text-gray-700">
+            {actionType === 'check_in' ? 'Memproses Check-In...' : 'Memproses Check-Out...'}
+          </p>
           <div className="flex flex-wrap justify-center gap-2">
             {faceResult && (
               faceResult.matched
@@ -454,17 +492,6 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
       {/* DONE */}
       {step === 'done' && (
         <div className="text-center space-y-4">
-          {isLatePresensi && (
-            <div className="bg-amber-50 border border-amber-200/60 rounded-lg p-3 text-left">
-              <div className="flex items-start gap-2">
-                <AlertTriangle size={15} className="text-amber-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-amber-800">Check-in kosong</p>
-                  <p className="text-xs text-amber-600/80 mt-0.5">Anda terlambat. Jam masuk kosong dan perlu disetujui oleh admin.</p>
-                </div>
-              </div>
-            </div>
-          )}
           {capturedFacePhoto && (
             <div className="inline-block">
               <div className={`relative rounded-xl overflow-hidden border-2 ${faceResult?.matched ? 'border-emerald-400' : 'border-amber-400'}`}>
@@ -511,15 +538,4 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
       )}
     </Modal>
   )
-}
-
-function getStatusBadgeInline(status?: string) {
-  switch (status) {
-    case 'Hadir': return <Badge variant="success" className="ml-2 text-[11px]">Hadir</Badge>
-    case 'Terlambat': return <Badge variant="warning" className="ml-2 text-[11px]">Terlambat</Badge>
-    case 'Alpha': return <Badge variant="danger" className="ml-2 text-[11px]">Alpha</Badge>
-    case 'Izin': return <Badge variant="info" className="ml-2 text-[11px]">Izin</Badge>
-    case 'Sakit': return <Badge variant="warning" className="ml-2 text-[11px]">Sakit</Badge>
-    default: return null
-  }
 }
