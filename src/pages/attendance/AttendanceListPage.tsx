@@ -9,6 +9,7 @@ import Input from '@/components/ui/Input'
 import Card from '@/components/ui/Card'
 import DataTable from '@/components/ui/DataTable'
 import Badge from '@/components/ui/Badge'
+import FaceThumbnail from '@/components/ui/FaceThumbnail'
 import type { Attendance } from '@/types/api'
 
 function formatDateTime(iso?: string) {
@@ -71,7 +72,7 @@ const columns = [
       key: 'employee_name',
       header: 'Karyawan',
       render: (item: Attendance) => {
-        const photo = item.photo_data
+        const photo = item.checkin_photo_data || item.photo_data
         return (
           <div className="flex items-center gap-2">
             {photo ? (
@@ -137,29 +138,33 @@ const columns = [
       },
     },
     {
-      key: 'face_status',
-      header: 'Verifikasi Wajah',
+      key: 'checkin_photo',
+      header: 'Check In',
+      render: (item: Attendance) => (
+        <FaceThumbnail
+          src={item.checkin_photo_data || item.photo_data}
+          faceStatus={item.face_status}
+          faceScore={item.face_score}
+        />
+      ),
+    },
+    {
+      key: 'checkout_photo',
+      header: 'Check Out',
       render: (item: Attendance) => {
-        const photo = (item as any).photo_data
-        if (!photo) return <span className="text-xs text-gray-400">-</span>
-        return (
-          <div className="flex items-center gap-2">
-            <div className={`relative w-10 h-10 rounded-lg overflow-hidden border-2 flex-shrink-0 ${
-              item.face_status === 'Matched' || item.face_status === 'matched'
-                ? 'border-emerald-400'
-                : 'border-amber-400'
-            }`}>
-              <img src={photo} alt="Wajah" className="w-full h-full object-cover" />
-              <div className={`absolute bottom-0 inset-x-0 text-center text-[8px] font-bold text-white leading-tight ${
-                item.face_status === 'Matched' || item.face_status === 'matched'
-                  ? 'bg-emerald-600/90'
-                  : 'bg-amber-500/90'
-              }`}>
-                {item.face_score ?? 0}%
-              </div>
-            </div>
-          </div>
-        )
+        if (item.checkout_photo_data) {
+          return (
+            <FaceThumbnail
+              src={item.checkout_photo_data}
+              faceStatus={item.face_status}
+              faceScore={item.face_score}
+            />
+          )
+        }
+        if (item.check_in_time && !item.check_out_time) {
+          return <span className="inline-flex items-center justify-center w-14 h-14 rounded-lg border border-dashed border-amber-300 bg-amber-50 text-[9px] text-amber-500 font-medium text-center px-1">Belum Check Out</span>
+        }
+        return <FaceThumbnail src={null} label="No Image" />
       },
     },
   ]

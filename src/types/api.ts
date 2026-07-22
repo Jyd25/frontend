@@ -116,6 +116,8 @@ export interface Attendance {
   remarks?: string
   photo_path?: string
   photo_data?: string
+  checkin_photo_data?: string
+  checkout_photo_data?: string
   address?: string
   work_duration?: string
   created_at: string

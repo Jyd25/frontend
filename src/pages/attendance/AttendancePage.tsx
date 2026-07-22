@@ -10,6 +10,7 @@ import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
+import FaceThumbnail from '@/components/ui/FaceThumbnail'
 import type { Attendance } from '@/types/api'
 
 const MONTH_NAMES = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
@@ -240,14 +241,21 @@ export default function AttendancePage() {
 
                 {hasData ? (
                   <div className="flex-1 space-y-1">
-                    {/* Face photo thumbnail */}
-                    {attendance.photo_data && (
-                      <div className={`w-7 h-7 rounded-md overflow-hidden border flex-shrink-0 ${
-                        attendance.face_status === 'Matched' || attendance.face_status === 'matched' ? 'border-emerald-400' : 'border-amber-400'
-                      }`}>
-                        <img src={attendance.photo_data} alt="" className="w-full h-full object-cover" />
-                      </div>
-                    )}
+                    {/* Face photo thumbnails */}
+                    <div className="flex items-center gap-1">
+                      {(attendance.checkin_photo_data || attendance.photo_data) && (
+                        <div className={`w-6 h-6 rounded-md overflow-hidden border flex-shrink-0 ${
+                          attendance.face_status === 'Matched' || attendance.face_status === 'matched' ? 'border-emerald-400' : 'border-amber-400'
+                        }`}>
+                          <img src={attendance.checkin_photo_data || attendance.photo_data} alt="" className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                      {attendance.checkout_photo_data && (
+                        <div className="w-6 h-6 rounded-md overflow-hidden border border-orange-400 flex-shrink-0">
+                          <img src={attendance.checkout_photo_data} alt="" className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                    </div>
 
                     {/* Times */}
                     <div className="space-y-0.5">
@@ -314,7 +322,8 @@ export default function AttendancePage() {
                 <tr className="bg-gray-50 border-b border-gray-200/80">
                   {!isStaff && <th className="px-3 py-2.5 text-left text-[11px] uppercase tracking-wider text-gray-500 font-medium">Karyawan</th>}
                   <th className="px-3 py-2.5 text-left text-[11px] uppercase tracking-wider text-gray-500 font-medium">Tanggal</th>
-                  <th className="px-3 py-2.5 text-center text-[11px] uppercase tracking-wider text-gray-500 font-medium">Verifikasi Wajah</th>
+                  <th className="px-3 py-2.5 text-center text-[11px] uppercase tracking-wider text-gray-500 font-medium">Check In</th>
+                  <th className="px-3 py-2.5 text-center text-[11px] uppercase tracking-wider text-gray-500 font-medium">Check Out</th>
                   <th className="px-3 py-2.5 text-left text-[11px] uppercase tracking-wider text-gray-500 font-medium">Jam Masuk</th>
                   <th className="px-3 py-2.5 text-left text-[11px] uppercase tracking-wider text-gray-500 font-medium">Jam Pulang</th>
                   <th className="px-3 py-2.5 text-left text-[11px] uppercase tracking-wider text-gray-500 font-medium">Lokasi + Alamat</th>
@@ -335,8 +344,8 @@ export default function AttendancePage() {
                       {!isStaff && (
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-2">
-                            {item.photo_data ? (
-                              <img src={item.photo_data} alt="" className="w-7 h-7 rounded-full object-cover border border-gray-200 flex-shrink-0" />
+                            {(item.checkin_photo_data || item.photo_data) ? (
+                              <img src={item.checkin_photo_data || item.photo_data} alt="" className="w-7 h-7 rounded-full object-cover border border-gray-200 flex-shrink-0" />
                             ) : (
                               <div className="w-7 h-7 rounded-full gradient-primary flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
                                 {item.employee?.name?.charAt(0)?.toUpperCase() || '?'}
@@ -351,20 +360,30 @@ export default function AttendancePage() {
                       )}
                       <td className="px-3 py-3 text-sm text-gray-700 whitespace-nowrap">{dateStr}</td>
                       <td className="px-3 py-3 text-center">
-                        {item.photo_data ? (
-                          <div className={`inline-block relative w-10 h-10 rounded-lg overflow-hidden border-2 ${
-                            item.face_status === 'Matched' || item.face_status === 'matched' ? 'border-emerald-400' : 'border-amber-400'
-                          }`}>
-                            <img src={item.photo_data} alt="Wajah" className="w-full h-full object-cover" />
-                            <div className={`absolute bottom-0 inset-x-0 text-center text-[8px] font-bold text-white leading-tight ${
-                              item.face_status === 'Matched' || item.face_status === 'matched' ? 'bg-emerald-600/90' : 'bg-amber-500/90'
-                            }`}>
-                              {item.face_score ?? 0}%
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-gray-300">-</span>
-                        )}
+                        <div className="flex justify-center">
+                          <FaceThumbnail
+                            src={item.checkin_photo_data || item.photo_data}
+                            faceStatus={item.face_status}
+                            faceScore={item.face_score}
+                          />
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        <div className="flex justify-center">
+                          {item.checkout_photo_data ? (
+                            <FaceThumbnail
+                              src={item.checkout_photo_data}
+                              faceStatus={item.face_status}
+                              faceScore={item.face_score}
+                            />
+                          ) : item.check_in_time && !item.check_out_time ? (
+                            <span className="inline-flex items-center justify-center w-14 h-14 rounded-lg border border-dashed border-amber-300 bg-amber-50 text-[9px] text-amber-500 font-medium text-center px-1">
+                              Belum Check Out
+                            </span>
+                          ) : (
+                            <FaceThumbnail src={null} label="No Image" />
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-3">
                         {item.check_in_time ? (
