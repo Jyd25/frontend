@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Clock, MapPin, Camera, ChevronLeft, ChevronRight, AlertTriangle, Send, X } from 'lucide-react'
+import { Clock, MapPin, Camera, ChevronLeft, ChevronRight, AlertTriangle, Send, X, Pencil, Save } from 'lucide-react'
 import { attendanceService } from '@/services/attendance.service'
 import { correctionService } from '@/services/leave-correction.service'
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -40,6 +40,10 @@ export default function AttendancePage() {
   const [correctionDate, setCorrectionDate] = useState('')
   const [correctionType, setCorrectionType] = useState<'check_in' | 'check_out'>('check_in')
   const [correctionReason, setCorrectionReason] = useState('')
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editItem, setEditItem] = useState<Attendance | null>(null)
+  const [editCheckIn, setEditCheckIn] = useState('')
+  const [editCheckOut, setEditCheckOut] = useState('')
 
   const { data: todayAttendance, isLoading: todayLoading } = useQuery({
     queryKey: ['attendance-today'],
@@ -70,6 +74,20 @@ export default function AttendancePage() {
     onError: (e: any) => toast.error(e.response?.data?.message || 'Gagal mengajukan perbaikan'),
   })
 
+  const updateAttendance = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: { check_in_time?: string | null; check_out_time?: string | null } }) =>
+      attendanceService.update(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendances-monthly'] })
+      toast.success('Data kehadiran berhasil diperbarui')
+      setShowEditModal(false)
+      setEditItem(null)
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Gagal memperbarui data'),
+  })
+
+  const isAdmin = user?.role?.name === 'Administrator'
+
   const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate()
   const firstDayOfWeek = new Date(selectedYear, selectedMonth - 1, 1).getDay()
 
@@ -77,6 +95,7 @@ export default function AttendancePage() {
     const map: Record<string, Attendance> = {}
     const items = monthData?.data?.items || []
     for (const item of items) {
+      if (item.employee?.id !== user?.employee_id) continue
       let dateKey: string | null = null
       if (item.check_in_time) {
         dateKey = new Date(item.check_in_time).toLocaleDateString('sv-SE')
@@ -92,7 +111,7 @@ export default function AttendancePage() {
       }
     }
     return map
-  }, [monthData])
+  }, [monthData, user])
 
   const calendarDays: (number | null)[] = []
   for (let i = 0; i < firstDayOfWeek; i++) calendarDays.push(null)
@@ -112,6 +131,13 @@ export default function AttendancePage() {
     setCorrectionType(type)
     setCorrectionReason('')
     setShowCorrectionModal(true)
+  }
+
+  function openEdit(item: Attendance) {
+    setEditItem(item)
+    setEditCheckIn(item.check_in_time ? new Date(item.check_in_time).toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(' ', 'T') : '')
+    setEditCheckOut(item.check_out_time ? new Date(item.check_out_time).toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(' ', 'T') : '')
+    setShowEditModal(true)
   }
 
   function prevMonth() {
@@ -406,7 +432,15 @@ export default function AttendancePage() {
                         </div>
                       </td>
                       <td className="px-3 py-3 text-center">{getStatusBadge(item.attendance_status)}</td>
-                      {!isStaff && <td className="px-3 py-3 text-center">-</td>}
+                      {!isStaff && (
+                        <td className="px-3 py-3 text-center">
+                          {isAdmin && (
+                            <button onClick={() => openEdit(item)} className="text-sky-500 hover:text-sky-700 p-1 rounded hover:bg-sky-50 transition-colors" title="Edit jam kehadiran">
+                              <Pencil size={14} />
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   )
                 })}
@@ -454,6 +488,60 @@ export default function AttendancePage() {
               })}
             >
               <Send size={14} className="mr-2" /> Kirim Pengajuan
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Admin Edit Attendance Modal */}
+      <Modal open={showEditModal} onClose={() => { setShowEditModal(false); setEditItem(null) }} title="Edit Jam Kehadiran">
+        <div className="space-y-4">
+          {editItem && (
+            <div className="bg-sky-50 border border-sky-200/60 rounded-lg p-3">
+              <p className="text-sm text-sky-800 font-medium">{editItem.employee?.name || '-'}</p>
+              <p className="text-xs text-sky-600 mt-0.5">
+                {editItem.check_in_time
+                  ? new Date(editItem.check_in_time).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+                  : editItem.check_out_time
+                    ? new Date(editItem.check_out_time).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+                    : '-'}
+              </p>
+            </div>
+          )}
+          <div className="space-y-1">
+            <label className="text-[11px] uppercase tracking-wider font-medium text-gray-500">Jam Masuk</label>
+            <input
+              type="datetime-local"
+              value={editCheckIn}
+              onChange={(e) => setEditCheckIn(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200/80 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-colors"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[11px] uppercase tracking-wider font-medium text-gray-500">Jam Pulang</label>
+            <input
+              type="datetime-local"
+              value={editCheckOut}
+              onChange={(e) => setEditCheckOut(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200/80 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-colors"
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => { setShowEditModal(false); setEditItem(null) }}>Batal</Button>
+            <Button
+              loading={updateAttendance.isPending}
+              onClick={() => {
+                if (!editItem) return
+                updateAttendance.mutate({
+                  id: editItem.id,
+                  payload: {
+                    check_in_time: editCheckIn || null,
+                    check_out_time: editCheckOut || null,
+                  },
+                })
+              }}
+            >
+              <Save size={14} className="mr-2" /> Simpan
             </Button>
           </div>
         </div>

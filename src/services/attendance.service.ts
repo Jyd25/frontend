@@ -49,4 +49,11 @@ export const attendanceService = {
     const { data } = await api.get<PaginatedResponse<Attendance>>('/attendances/history', { params })
     return data
   },
+  update: async (id: number, payload: {
+    check_in_time?: string | null
+    check_out_time?: string | null
+  }) => {
+    const { data } = await api.put<ApiResponse<Attendance>>(`/attendances/${id}`, payload)
+    return data.data
+  },
 }

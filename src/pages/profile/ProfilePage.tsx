@@ -591,8 +591,8 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {faces.map((faceData: FaceDataset) => (
               <div key={faceData.id} className="relative group rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
-                {(faceData as any).image_path ? (
-                  <img src={(faceData as any).image_path} alt="Face" className="w-full aspect-square object-cover" />
+                {(faceData as any).image_path || (faceData as any).image_data ? (
+                  <img src={(faceData as any).image_path || (faceData as any).image_data} alt="Face" className="w-full aspect-square object-cover" />
                 ) : (
                   <div className="w-full aspect-square flex items-center justify-center">
                     <ScanFace size={32} className="text-gray-300" />
