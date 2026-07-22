@@ -396,7 +396,7 @@ export default function AttendancePage() {
                       ? 'Anda sudah melakukan check-in dan check-out hari ini'
                       : 'Menunggu waktu check-out'
                     : isPastCheckinDeadline
-                      ? 'Lewat pukul 10:00. Presensi akan otomatis check-in sekaligus check-out dengan status Terlambat.'
+                      ? 'Lewat pukul 10:00. Jam masuk tercatat kosong, dapat disetujui admin nanti.'
                        : 'Lakukan check-in untuk memulai hari kerja'
                   }
                 </p>
@@ -407,7 +407,7 @@ export default function AttendancePage() {
                       <AlertTriangle size={15} className="text-amber-600 mt-0.5 flex-shrink-0" />
                       <div>
                         <p className="text-sm font-medium text-amber-800">Presensi Terlambat</p>
-                        <p className="text-xs text-amber-600/80 mt-0.5">Status akan tercatat sebagai <strong>Terlambat</strong> dan langsung selesai (auto check-out).</p>
+                        <p className="text-xs text-amber-600/80 mt-0.5">Jam masuk akan tercatat <strong>kosong</strong>. Hubungi admin untuk menyesuaikan jam check-in.</p>
                       </div>
                     </div>
                   </div>
