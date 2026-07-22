@@ -1,23 +1,19 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { MapPin, Clock, CheckCircle2, LogOut, Camera, CameraOff, Fingerprint, Loader2, AlertTriangle, ChevronRight, CircleDot, Navigation } from 'lucide-react'
+import { Clock, MapPin, Camera, ChevronLeft, ChevronRight, AlertTriangle, Send, X } from 'lucide-react'
 import { attendanceService } from '@/services/attendance.service'
-import { faceService, geolocationService } from '@/services/face-geo.service'
+import { correctionService } from '@/services/leave-correction.service'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { loadModels, useFaceRecognition, descriptorToArray } from '@/hooks/useFaceRecognition'
-import { useAttendanceReminder } from '@/hooks/useAttendanceReminder'
-import { reverseGeocode } from '@/lib/geocode'
-import LocationMap from '@/components/ui/LocationMap'
+import PresensiModal from '@/components/attendance/PresensiModal'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
+import Modal from '@/components/ui/Modal'
+import type { Attendance } from '@/types/api'
 
-function formatTime(iso?: string) {
-  if (!iso) return '-'
-  return new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-}
+const MONTH_NAMES = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+const DAY_NAMES = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
 
 function getStatusBadge(status?: string) {
   switch (status) {
@@ -30,301 +26,125 @@ function getStatusBadge(status?: string) {
   }
 }
 
-type Step = 'idle' | 'face' | 'submitting' | 'done'
-
-const CHECKIN_DEADLINE_HOUR = 10
-const CHECKOUT_DEADLINE_HOUR = 20
-const AUTO_CAPTURE_SCORE = 0.75
-const CAPTURE_STABLE_MS = 1500
-
 export default function AttendancePage() {
   const queryClient = useQueryClient()
   const user = useAuthStore((s) => s.user)
-  const employeeId = user?.employee?.id || user?.employee_id
+  const isStaff = ['Guru', 'Karyawan'].includes(user?.role?.name ?? '')
 
-  const [step, setStep] = useState<Step>('idle')
-  const [modelsReady, setModelsReady] = useState(false)
-  const [faceResult, setFaceResult] = useState<{ matched: boolean; score: number } | null>(null)
-  const [geoResult, setGeoResult] = useState<{ inside: boolean; distance: number | null; locationName: string | null; locationId: number | null; latitude: number | null; longitude: number | null; address: string | null; locationLat: number | null; locationLng: number | null; radius: number | null } | null>(null)
-  const [actionType, setActionType] = useState<'check_in' | 'check_out'>('check_in')
-  const [now, setNow] = useState(new Date())
-  const [cameraError, setCameraError] = useState<string | null>(null)
-  const [countdown, setCountdown] = useState<number | null>(null)
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [capturedFacePhoto, setCapturedFacePhoto] = useState<string | null>(null)
-  const [isLatePresensi, setIsLatePresensi] = useState(false)
+  const today = new Date()
+  const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1)
+  const [selectedYear, setSelectedYear] = useState(today.getFullYear())
 
-  const faceDetectedSinceRef = useRef<number | null>(null)
-  const autoCaptureTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const [showPresensiModal, setShowPresensiModal] = useState(false)
+  const [showCorrectionModal, setShowCorrectionModal] = useState(false)
+  const [correctionDate, setCorrectionDate] = useState('')
+  const [correctionType, setCorrectionType] = useState<'check_in' | 'check_out'>('check_in')
+  const [correctionReason, setCorrectionReason] = useState('')
 
-  const face = useFaceRecognition()
-
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000)
-    return () => clearInterval(id)
-  }, [])
-
-  const { data: todayAttendance, isLoading } = useQuery({
+  const { data: todayAttendance, isLoading: todayLoading } = useQuery({
     queryKey: ['attendance-today'],
     queryFn: attendanceService.getToday,
     staleTime: 15000,
   })
 
-  const checkInMutation = useMutation({
-    mutationFn: (payload: { latitude: number; longitude: number; location_id?: number; face_score?: number; face_status?: string; photo_data?: string }) =>
-      attendanceService.checkIn(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['attendance-today'] })
-      toast.success('Check-in berhasil!')
-      setStep('done')
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Gagal check-in')
-      setStep('idle')
-    },
+  const { data: monthData, isLoading: monthLoading } = useQuery({
+    queryKey: ['attendances-monthly', selectedMonth, selectedYear],
+    queryFn: () =>
+      attendanceService.getAll({
+        month: selectedMonth,
+        year: selectedYear,
+        per_page: 100,
+      }),
+    staleTime: 10000,
   })
 
-  const checkOutMutation = useMutation({
-    mutationFn: (payload: { face_score?: number; face_status?: string; photo_data?: string }) =>
-      attendanceService.checkOut(payload),
+  const createCorrection = useMutation({
+    mutationFn: correctionService.create,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['attendance-today'] })
-      toast.success('Check-out berhasil!')
-      setStep('done')
+      queryClient.invalidateQueries({ queryKey: ['corrections'] })
+      toast.success('Pengajuan perbaikan berhasil dikirim')
+      setShowCorrectionModal(false)
+      setCorrectionDate('')
+      setCorrectionReason('')
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Gagal check-out')
-      setStep('idle')
-    },
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Gagal mengajukan perbaikan'),
   })
 
-  useEffect(() => {
-    loadModels().then((ok) => setModelsReady(ok))
-  }, [])
+  const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate()
+  const firstDayOfWeek = new Date(selectedYear, selectedMonth - 1, 1).getDay()
 
-  const processGeo = useCallback(async (lat: number, lng: number) => {
-    setStep('submitting')
-    setIsProcessing(true)
-    let locationId: number | null = null
-    let address: string | null = null
-    let locLat: number | null = null
-    let locLng: number | null = null
-    let locRadius: number | null = null
-    try {
-      const [result, geoAddr] = await Promise.all([
-        geolocationService.validate(lat, lng),
-        reverseGeocode(lat, lng),
-      ])
-      locationId = result.location_id ?? null
-      address = geoAddr
-      locLat = result.latitude
-      locLng = result.longitude
-      locRadius = result.radius
-      setGeoResult({
-        inside: result.inside_radius,
-        distance: result.distance,
-        locationName: result.location_name,
-        locationId,
-        latitude: result.latitude,
-        longitude: result.longitude,
-        address,
-        locationLat: locLat,
-        locationLng: locLng,
-        radius: locRadius,
-      })
-    } catch {
-      try {
-        address = await reverseGeocode(lat, lng)
-      } catch {}
-      setGeoResult({ inside: false, distance: null, locationName: null, locationId: null, latitude: null, longitude: null, address, locationLat: null, locationLng: null, radius: null })
-    }
-    if (actionType === 'check_in') {
-      checkInMutation.mutate({
-        latitude: lat,
-        longitude: lng,
-        location_id: locationId ?? undefined,
-        face_score: faceResult?.score,
-        face_status: faceResult?.matched ? 'matched' : 'unmatched',
-        photo_data: capturedFacePhoto || undefined,
-      })
-    } else {
-      checkOutMutation.mutate({
-        face_score: faceResult?.score,
-        face_status: faceResult?.matched ? 'matched' : 'unmatched',
-        photo_data: capturedFacePhoto || undefined,
-      })
-    }
-    setIsProcessing(false)
-  }, [actionType, checkInMutation, checkOutMutation, faceResult, capturedFacePhoto])
-
-  const doCaptureAndVerify = useCallback(async () => {
-    if (isProcessing) return
-    setIsProcessing(true)
-    face.stopDetection()
-
-    toast.info('Mengambil gambar wajah...')
-    const result = await face.captureFace()
-    if (!result.detected || !result.descriptor) {
-      toast.error('Wajah tidak terdeteksi. Coba lagi.')
-      face.startDetection()
-      setIsProcessing(false)
-      return
-    }
-
-    toast.info('Menyimpan gambar wajah...')
-    const imageFile = await face.captureImage()
-    let imageDataUri: string | null = null
-    if (imageFile) {
-      imageDataUri = await new Promise<string>((resolve) => {
-        const reader = new FileReader()
-        reader.onloadend = () => resolve(reader.result as string)
-        reader.readAsDataURL(imageFile)
-      })
-    }
-    setCapturedFacePhoto(imageDataUri)
-
-    toast.info('Memverifikasi wajah...')
-    try {
-      const verifyResult = await faceService.verify(employeeId!, descriptorToArray(result.descriptor))
-      setFaceResult({ matched: verifyResult.matched, score: verifyResult.score })
-
-      if ((verifyResult as any).no_face_data) {
-        toast.warning('Data wajah belum terdaftar. Verifikasi dilewati.', { duration: 6000 })
-      } else if (!verifyResult.matched) {
-        toast.warning(`Wajah tidak cocok (skor: ${verifyResult.score}%). Presensi tetap dilanjutkan.`, { duration: 5000 })
-      } else {
-        toast.success('Wajah cocok! Melanjutkan...')
+  const attendanceMap = useMemo(() => {
+    const map: Record<string, Attendance> = {}
+    const items = monthData?.data?.items || []
+    for (const item of items) {
+      let dateKey: string | null = null
+      if (item.check_in_time) {
+        dateKey = new Date(item.check_in_time).toLocaleDateString('sv-SE')
+      } else if (item.check_out_time) {
+        dateKey = new Date(item.check_out_time).toLocaleDateString('sv-SE')
       }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal memverifikasi wajah')
-      setFaceResult({ matched: false, score: 0 })
+      if (dateKey) {
+        if (!map[dateKey]) {
+          map[dateKey] = item
+        } else {
+          if (item.check_in_time && !map[dateKey].check_in_time) map[dateKey] = item
+        }
+      }
     }
+    return map
+  }, [monthData])
 
-    toast.info('Mengambil lokasi...')
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        face.stopCamera()
-        await processGeo(pos.coords.latitude, pos.coords.longitude)
-      },
-      () => {
-        toast.error('Gagal mendapatkan lokasi. GPS aktif?')
-        face.stopCamera()
-        setStep('idle')
-        setIsProcessing(false)
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    )
-  }, [employeeId, face, processGeo, isProcessing])
+  const calendarDays: (number | null)[] = []
+  for (let i = 0; i < firstDayOfWeek; i++) calendarDays.push(null)
+  for (let d = 1; d <= daysInMonth; d++) calendarDays.push(d)
 
-  async function startAttendance(type: 'check_in' | 'check_out') {
-    if (type === 'check_in' && !employeeId) {
-      toast.error('Akun ini belum terkait data karyawan. Hubungi admin.', { duration: 5000 })
-      return
-    }
-    setActionType(type)
-    setFaceResult(null)
-    setGeoResult(null)
-    setCameraError(null)
-    setCountdown(null)
-    setCapturedFacePhoto(null)
-    setIsLatePresensi(type === 'check_in' && new Date().getHours() >= 10)
-    faceDetectedSinceRef.current = null
-    setStep('face')
-
-    const ok = await face.startCamera()
-    if (!ok) {
-      toast.error('Gagal membuka kamera. Pastikan izin kamera diberikan.')
-      setCameraError('Kamera tidak tersedia. Berikan izin kamera di browser.')
-      setStep('idle')
-      return
-    }
+  function formatTimeShort(iso?: string) {
+    if (!iso) return '-'
+    return new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
   }
 
-  useEffect(() => {
-    if (step === 'face' && face.isReady && !isProcessing) {
-      face.startDetection()
-    }
-    return () => {
-      if (step !== 'face') face.stopDetection()
-    }
-  }, [step, face.isReady, face, isProcessing])
-
-  // Auto-capture: when face is detected with high score for long enough, auto-capture
-  useEffect(() => {
-    if (step !== 'face' || isProcessing) return
-
-    if (face.faceDetected && face.faceScore >= AUTO_CAPTURE_SCORE) {
-      if (!faceDetectedSinceRef.current) {
-        faceDetectedSinceRef.current = Date.now()
-        setCountdown(Math.ceil(CAPTURE_STABLE_MS / 1000))
-      }
-
-      const elapsed = Date.now() - faceDetectedSinceRef.current
-      const remaining = Math.max(0, CAPTURE_STABLE_MS - elapsed)
-      setCountdown(Math.ceil(remaining / 1000))
-
-      if (remaining <= 0) {
-        faceDetectedSinceRef.current = null
-        setCountdown(null)
-        doCaptureAndVerify()
-        return
-      }
-
-      autoCaptureTimerRef.current = setTimeout(() => {
-        const newRemaining = Math.max(0, CAPTURE_STABLE_MS - (Date.now() - (faceDetectedSinceRef.current || Date.now())))
-        setCountdown(Math.ceil(newRemaining / 1000))
-      }, 100)
-    } else {
-      faceDetectedSinceRef.current = null
-      setCountdown(null)
-      if (autoCaptureTimerRef.current) {
-        clearTimeout(autoCaptureTimerRef.current)
-      }
-    }
-
-    return () => {
-      if (autoCaptureTimerRef.current) clearTimeout(autoCaptureTimerRef.current)
-    }
-  }, [face.faceDetected, face.faceScore, step, isProcessing, doCaptureAndVerify])
-
-  function handleCancel() {
-    face.stopCamera()
-    face.stopDetection()
-    setStep('idle')
-    setFaceResult(null)
-    setGeoResult(null)
-    setCameraError(null)
-    setCountdown(null)
-    setCapturedFacePhoto(null)
-    faceDetectedSinceRef.current = null
-    if (autoCaptureTimerRef.current) clearTimeout(autoCaptureTimerRef.current)
+  function formatDateKey(day: number) {
+    return `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
   }
 
-  const isCheckedIn = todayAttendance && todayAttendance.check_in_time
-  const isCheckedOut = todayAttendance && todayAttendance.check_out_time
+  function openCorrection(day: number, type: 'check_in' | 'check_out') {
+    setCorrectionDate(formatDateKey(day))
+    setCorrectionType(type)
+    setCorrectionReason('')
+    setShowCorrectionModal(true)
+  }
 
-  useAttendanceReminder({
-    enabled: true,
-    hasCheckedIn: !!isCheckedIn,
-    hasCheckedOut: !!isCheckedOut,
-  })
+  function prevMonth() {
+    if (selectedMonth === 1) { setSelectedMonth(12); setSelectedYear((y) => y - 1) }
+    else setSelectedMonth((m) => m - 1)
+  }
 
-  const currentHour = now.getHours()
-  const isPastCheckinDeadline = currentHour >= CHECKIN_DEADLINE_HOUR && !isCheckedIn
-  const isPastCheckoutDeadline = currentHour >= CHECKOUT_DEADLINE_HOUR && isCheckedIn && !isCheckedOut
+  function nextMonth() {
+    if (selectedMonth === 12) { setSelectedMonth(1); setSelectedYear((y) => y + 1) }
+    else setSelectedMonth((m) => m + 1)
+  }
 
-  const checkoutDeadline = new Date(now)
-  checkoutDeadline.setHours(CHECKOUT_DEADLINE_HOUR, 0, 0, 0)
-  const msUntilCheckout = checkoutDeadline.getTime() - now.getTime()
-  const hoursLeft = Math.max(0, Math.floor(msUntilCheckout / 3600000))
-  const minsLeft = Math.max(0, Math.floor((msUntilCheckout % 3600000) / 60000))
-  const secsLeft = Math.max(0, Math.floor((msUntilCheckout % 60000) / 1000))
+  const isCurrentMonth = selectedMonth === today.getMonth() + 1 && selectedYear === today.getFullYear()
+  const isToday = (day: number) => isCurrentMonth && day === today.getDate()
+  const isPast = (day: number) => {
+    if (selectedYear < today.getFullYear()) return true
+    if (selectedYear === today.getFullYear() && selectedMonth < today.getMonth() + 1) return true
+    if (selectedYear === today.getFullYear() && selectedMonth === today.getMonth() + 1 && day < today.getDate()) return true
+    return false
+  }
 
-  const hours = now.toLocaleTimeString('id-ID', { hour: '2-digit', hour12: false })
-  const minutes = now.toLocaleTimeString('id-ID', { minute: '2-digit' })
-  const seconds = now.toLocaleTimeString('id-ID', { second: '2-digit' })
+  const employeeMap = useMemo(() => {
+    const map: Record<number, any> = {}
+    const items = monthData?.data?.items || []
+    for (const item of items) {
+      if (item.employee?.id && !map[item.employee.id]) {
+        map[item.employee.id] = item.employee
+      }
+    }
+    return map
+  }, [monthData])
 
-  if (isLoading) {
+  if (todayLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-8 w-8 border-2 border-sky-200 border-t-teal-600" />
@@ -334,457 +154,317 @@ export default function AttendancePage() {
 
   return (
     <div className="max-w-[1400px] mx-auto space-y-6">
-      <div className="gradient-primary rounded-2xl px-8 py-6 text-center shadow-lg shadow-sky-500/15">
-        <h1 className="text-3xl font-semibold tracking-tight text-white">Kehadiran</h1>
-        <p className="text-sm text-white/60 mt-1">Check-in dan check-out harian</p>
-        <div className="mt-4">
-          <div className="inline-flex items-baseline gap-1 tabular-nums font-mono tracking-tighter">
-            <span className="text-4xl sm:text-5xl font-semibold text-white">{hours}</span>
-            <span className="text-xl font-light text-white/70 animate-pulse">:</span>
-            <span className="text-4xl sm:text-5xl font-semibold text-white">{minutes}</span>
-            <span className="text-xl font-light text-white/40">:</span>
-            <span className="text-4xl sm:text-5xl font-normal text-white/50">{seconds}</span>
-          </div>
-          <div className="flex items-center justify-center gap-1.5 mt-2">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75" />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
-            </span>
-            <span className="text-[10px] font-medium text-white/70 uppercase tracking-wider">Live</span>
-          </div>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="text-center sm:text-left">
+          <h1 className="text-3xl font-semibold tracking-tight text-gray-900">Kehadiran</h1>
+          <p className="text-sm text-gray-500 mt-1">Data kehadiran bulanan</p>
         </div>
+        <Button onClick={() => setShowPresensiModal(true)}>
+          <Camera size={16} className="mr-2" /> Presensi Sekarang
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 !p-0 overflow-hidden">
-          <div className="p-8 sm:p-10 text-center">
-            {/* IDLE */}
-            {step === 'idle' && (
-              <>
-                <div className="mb-6">
-                  {isCheckedIn ? (
-                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-emerald-50 ring-1 ring-emerald-500/10">
-                      <CheckCircle2 size={40} className="text-emerald-600" />
-                    </div>
-                  ) : (
-                    <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full ring-1 ${
-                      isPastCheckinDeadline
-                        ? 'bg-amber-50 ring-amber-500/10'
-                        : 'bg-gray-100 ring-gray-200'
-                    }`}>
-                      {isPastCheckinDeadline
-                        ? <AlertTriangle size={40} className="text-amber-600" />
-                        : <Clock size={40} className="text-gray-400" />
-                      }
-                    </div>
+      {/* Month Navigation */}
+      <Card>
+        <div className="flex items-center justify-between">
+          <button onClick={prevMonth} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+            <ChevronLeft size={20} className="text-gray-600" />
+          </button>
+          <div className="text-center">
+            <h2 className="text-lg font-semibold text-gray-900">{MONTH_NAMES[selectedMonth]} {selectedYear}</h2>
+            {isCurrentMonth && <p className="text-xs text-gray-400">{today.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>}
+          </div>
+          <button onClick={nextMonth} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+            <ChevronRight size={20} className="text-gray-600" />
+          </button>
+        </div>
+      </Card>
+
+      {/* Calendar Grid */}
+      <Card>
+        <div className="grid grid-cols-7 gap-px bg-gray-200/60 rounded-xl overflow-hidden">
+          {DAY_NAMES.map((d) => (
+            <div key={d} className="bg-gray-50 py-2 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{d}</div>
+          ))}
+          {calendarDays.map((day, i) => {
+            if (day === null) return <div key={`empty-${i}`} className="bg-white min-h-[100px] sm:min-h-[120px]" />
+            const dateKey = formatDateKey(day)
+            const attendance = attendanceMap[dateKey]
+            const hasData = !!attendance
+            const todayMark = isToday(day)
+
+            return (
+              <div key={day} className={`bg-white min-h-[100px] sm:min-h-[120px] p-2 flex flex-col ${todayMark ? 'ring-2 ring-inset ring-sky-400/40' : ''}`}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className={`text-xs font-semibold ${todayMark ? 'text-sky-600' : isPast(day) && !hasData ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {day}
+                  </span>
+                  {todayMark && <span className="text-[9px] font-bold text-sky-500 bg-sky-50 px-1.5 py-0.5 rounded-full">HARI INI</span>}
+                  {hasData && (
+                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{
+                      backgroundColor: attendance.attendance_status === 'Hadir' || attendance.attendance_status === 'Present' ? '#22c55e'
+                        : attendance.attendance_status === 'Terlambat' || attendance.attendance_status === 'Late' ? '#f59e0b'
+                        : attendance.attendance_status === 'Izin' || attendance.attendance_status === 'Permission' ? '#3b82f6'
+                        : attendance.attendance_status === 'Sakit' || attendance.attendance_status === 'Leave' ? '#f59e0b'
+                        : '#ef4444'
+                    }} />
                   )}
                 </div>
 
-                <h2 className="text-xl font-semibold text-gray-900 mb-1">
-                  {isCheckedIn
-                    ? isCheckedOut
-                      ? 'Kehadiran Selesai'
-                      : 'Sudah Check-In'
-                    : isPastCheckinDeadline
-                      ? 'Terlambat Hari Ini'
-                      : 'Belum Check-In'
-                  }
-                </h2>
-                <p className="text-sm text-gray-500 mb-6">
-                  {isCheckedIn
-                    ? isCheckedOut
-                      ? 'Anda sudah melakukan check-in dan check-out hari ini'
-                      : 'Menunggu waktu check-out'
-                    : isPastCheckinDeadline
-                      ? 'Lewat pukul 10:00. Jam masuk tercatat kosong, dapat disetujui admin nanti.'
-                       : 'Lakukan check-in untuk memulai hari kerja'
-                  }
-                </p>
-
-                {isPastCheckinDeadline && !isCheckedIn && (
-                  <div className="bg-amber-50 border border-amber-200/60 rounded-lg p-3 mb-6 max-w-sm mx-auto text-left">
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle size={15} className="text-amber-600 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-sm font-medium text-amber-800">Presensi Terlambat</p>
-                        <p className="text-xs text-amber-600/80 mt-0.5">Jam masuk akan tercatat <strong>kosong</strong>. Hubungi admin untuk menyesuaikan jam check-in.</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {isPastCheckoutDeadline && (
-                  <div className="bg-red-50 border border-red-200/60 rounded-lg p-3 mb-6 max-w-sm mx-auto text-left">
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle size={15} className="text-red-600 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-sm font-medium text-red-800">Batas check-out 20:00 sudah lewat</p>
-                        <p className="text-xs text-red-600/80 mt-0.5">Segera check-out untuk menghindari status Alpha.</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {isCheckedIn && todayAttendance && (
-                  <div className="flex items-center justify-center gap-3 mb-6">
-                    <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                      <Clock size={14} />
-                      <span>Masuk {formatTime(todayAttendance.check_in_time)}</span>
-                    </div>
-                    {getStatusBadge(todayAttendance.attendance_status)}
-                  </div>
-                )}
-
-                {cameraError && (
-                  <div className="bg-red-50 border border-red-200/60 rounded-lg p-3 mb-6 max-w-sm mx-auto text-left">
-                    <div className="flex items-start gap-2">
-                      <CameraOff size={15} className="text-red-600 mt-0.5 flex-shrink-0" />
-                      <p className="text-sm text-red-800">{cameraError}</p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  {!isCheckedIn && modelsReady && (
-                    <Button size="lg" onClick={() => startAttendance('check_in')} className="w-full sm:w-auto min-w-[200px]">
-                      <Fingerprint size={18} className="mr-2" /> {isPastCheckinDeadline ? 'Presensi' : 'Check In'}
-                    </Button>
-                  )}
-                  {!isCheckedIn && !modelsReady && (
-                    <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
-                      <Loader2 size={14} className="animate-spin" /> Memuat model wajah...
-                    </div>
-                  )}
-                  {isCheckedIn && !isCheckedOut && modelsReady && (
-                    <Button size="lg" variant="danger" onClick={() => startAttendance('check_out')} className="w-full sm:w-auto min-w-[200px]">
-                      <LogOut size={18} className="mr-2" /> Check Out
-                    </Button>
-                  )}
-                  {isCheckedIn && !isCheckedOut && !modelsReady && (
-                    <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
-                      <Loader2 size={14} className="animate-spin" /> Memuat model wajah...
-                    </div>
-                  )}
-                  {isCheckedOut && (
-                    <div className="flex items-center justify-center gap-2 text-emerald-600 text-sm font-medium">
-                      <CheckCircle2 size={16} />
-                      Check-out pukul {formatTime(todayAttendance.check_out_time)}
-                    </div>
-                  )}
-                  {!isCheckedIn && !isCheckedOut && isPastCheckinDeadline && (
-                    <Link to="/corrections" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors mt-2 group">
-                      <AlertTriangle size={13} />
-                      Lupa absen? Ajukan perbaikan
-                      <ChevronRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
-                    </Link>
-                  )}
-                </div>
-              </>
-            )}
-
-            {/* FACE CAMERA + AUTO CAPTURE */}
-            {step === 'face' && (
-              <>
-                <div className="mb-4">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-1">
-                    {actionType === 'check_in' ? 'Check-In' : 'Check-Out'} — Verifikasi Wajah
-                  </h2>
-                  <p className="text-sm text-gray-500">
-                    {isProcessing
-                      ? 'Memproses verifikasi...'
-                      : countdown !== null
-                        ? 'Wajah terdeteksi! Tunggu sebentar...'
-                        : 'Arahkan wajah ke kamera'
-                    }
-                  </p>
-                </div>
-
-                <div className="relative inline-block rounded-xl overflow-hidden border-2 border-sky-300 mb-5 w-full max-w-sm shadow-lg shadow-sky-500/10">
-                    <video ref={face.videoRef} autoPlay muted playsInline className="w-full aspect-[4/3] object-cover" style={{ transform: 'scaleX(-1)' }} />
-                    <canvas ref={face.canvasRef} className="absolute inset-0 w-full h-full" style={{ transform: 'scaleX(-1)' }} />
-
-                  {/* Status badge */}
-                  {isProcessing ? (
-                    <div className="absolute top-3 right-3 bg-sky-600 text-white px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5">
-                      <Loader2 size={12} className="animate-spin" /> Proses
-                    </div>
-                  ) : face.faceDetected && face.faceScore >= AUTO_CAPTURE_SCORE ? (
-                    <div className="absolute top-3 right-3 bg-emerald-600 text-white px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5">
-                      <CheckCircle2 size={12} /> Terdeteksi
-                    </div>
-                  ) : face.isReady ? (
-                    <div className="absolute top-3 right-3 bg-amber-500 text-white px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5">
-                      <CircleDot size={12} /> Cari Wajah
-                    </div>
-                  ) : (
-                    <div className="absolute top-3 right-3 bg-gray-600 text-white px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5">
-                      <Camera size={12} /> Memuat...
-                    </div>
-                  )}
-
-                  {/* Countdown overlay */}
-                  {countdown !== null && countdown > 0 && !isProcessing && (
-                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2">
-                      <div className="bg-black/60 text-white px-3 py-1.5 rounded-full text-sm font-mono font-bold backdrop-blur-sm">
-                        {countdown}s
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Scanning line effect when searching */}
-                  {face.isReady && !face.faceDetected && !isProcessing && (
-                    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                      <div className="absolute left-0 right-0 h-0.5 bg-sky-400/60 animate-[scan_2s_ease-in-out_infinite]" />
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex flex-col sm:flex-row justify-center gap-3">
-                  <Button
-                    onClick={doCaptureAndVerify}
-                    disabled={isProcessing || !face.faceDetected}
-                    loading={isProcessing}
-                    className="w-full sm:w-auto min-w-[180px]"
-                  >
-                    <Camera size={15} className="mr-2" /> Ambil & Verifikasi
-                  </Button>
-                  <Button variant="outline" onClick={handleCancel} disabled={isProcessing} className="w-full sm:w-auto">
-                    <CameraOff size={15} className="mr-2" /> Batal
-                  </Button>
-                </div>
-              </>
-            )}
-
-            {/* SUBMITTING */}
-            {step === 'submitting' && (
-              <>
-                <div className="mb-5">
-                  <Loader2 size={40} className="mx-auto text-sky-500 animate-spin" />
-                </div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-3">Memproses Kehadiran...</h2>
-                <div className="flex flex-wrap justify-center gap-2">
-                  {faceResult && (
-                    faceResult.matched
-                      ? <Badge variant="success">Wajah Cocok ({faceResult.score}%)</Badge>
-                      : <Badge variant="danger">Wajah Tidak Cocok</Badge>
-                  )}
-                  {geoResult && (
-                    geoResult.inside
-                      ? <Badge variant="success"><MapPin size={12} className="mr-1" />{geoResult.locationName} ({geoResult.distance}m)</Badge>
-                      : <Badge variant="warning"><MapPin size={12} className="mr-1" />Luar Radius — {geoResult.locationName || 'Lokasi'} ({geoResult.distance !== null ? `${geoResult.distance}m` : ''}){geoResult.latitude && geoResult.longitude ? ` [${geoResult.latitude.toFixed(6)}, ${geoResult.longitude.toFixed(6)}]` : ''}</Badge>
-                  )}
-                </div>
-              </>
-            )}
-
-            {/* DONE */}
-            {step === 'done' && (
-              <>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                  {isLatePresensi ? 'Presensi Terlambat!' : actionType === 'check_in' ? 'Check-In Berhasil!' : 'Check-Out Berhasil!'}
-                </h2>
-
-                {isLatePresensi && (
-                  <div className="bg-amber-50 border border-amber-200/60 rounded-lg p-3 mb-4 max-w-sm mx-auto text-left">
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle size={15} className="text-amber-600 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-sm font-medium text-amber-800">Check-in kosong</p>
-                        <p className="text-xs text-amber-600/80 mt-0.5">Anda terlambat. Jam masuk kosong dan perlu disetujui oleh admin.</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Face photo with score */}
-                {capturedFacePhoto && (
-                  <div className="mb-4 inline-block">
-                    <div className={`relative rounded-xl overflow-hidden border-2 ${
-                      faceResult?.matched ? 'border-emerald-400' : 'border-amber-400'
-                    }`}>
-                      <img
-                        src={capturedFacePhoto}
-                        alt="Hasil Verifikasi"
-                        className="w-40 h-40 object-cover"
-                        style={{ transform: 'scaleX(-1)' }}
-                      />
-                      <div className={`absolute bottom-0 left-0 right-0 px-2 py-1.5 text-center text-xs font-bold text-white ${
-                        faceResult?.matched ? 'bg-emerald-600/90' : 'bg-amber-500/90'
+                {hasData ? (
+                  <div className="flex-1 space-y-1">
+                    {/* Face photo thumbnail */}
+                    {attendance.photo_data && (
+                      <div className={`w-7 h-7 rounded-md overflow-hidden border flex-shrink-0 ${
+                        attendance.face_status === 'Matched' || attendance.face_status === 'matched' ? 'border-emerald-400' : 'border-amber-400'
                       }`}>
-                        {faceResult?.score ?? 0}% Cocok
+                        <img src={attendance.photo_data} alt="" className="w-full h-full object-cover" />
                       </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex justify-center gap-2 flex-wrap mb-4">
-                    {geoResult?.inside && <Badge variant="success"><MapPin size={12} className="mr-1" />{geoResult.locationName}</Badge>}
-                    {geoResult && !geoResult.inside && (
-                      <Badge variant="warning">
-                        <MapPin size={12} className="mr-1" /> Luar Radius
-                        <span className="block text-[10px] mt-1 text-gray-600">
-                          {geoResult.locationName || 'Lokasi'} ({geoResult.distance !== null ? `${geoResult.distance}m` : ''})
-                        </span>
-                      </Badge>
                     )}
-                  </div>
 
-                  {geoResult?.latitude && geoResult?.longitude && (
-                    <div className="mb-4 max-w-md mx-auto">
-                      {geoResult.address && (
-                        <div className="flex items-start gap-2 text-left bg-gray-50 rounded-lg p-3 mb-3">
-                          <Navigation size={14} className="text-sky-500 mt-0.5 flex-shrink-0" />
-                          <p className="text-xs text-gray-600 leading-relaxed">{geoResult.address}</p>
-                        </div>
-                      )}
-                      {geoResult.locationLat && geoResult.locationLng && geoResult.radius && (
-                        <LocationMap
-                          userLat={geoResult.latitude}
-                          userLng={geoResult.longitude}
-                          centerLat={geoResult.locationLat}
-                          centerLng={geoResult.locationLng}
-                          radius={geoResult.radius}
-                          locationName={geoResult.locationName || 'Lokasi'}
-                        />
-                      )}
-                    </div>
-                  )}
-
-                <Button variant="outline" onClick={() => { setStep('idle'); queryClient.invalidateQueries({ queryKey: ['attendance-today'] }) }}>
-                  Tutup
-                </Button>
-              </>
-            )}
-          </div>
-        </Card>
-
-        {/* Sidebar */}
-        <div className="space-y-4">
-          {isCheckedIn && !isCheckedOut && (
-            <div className={`rounded-xl p-5 text-white ${
-              msUntilCheckout <= 0
-                ? 'bg-red-600'
-                : msUntilCheckout < 3600000
-                  ? 'bg-amber-500'
-                  : 'gradient-primary'
-            }`}>
-              <p className="text-xs font-medium opacity-70 mb-1">Sisa Waktu Check-Out</p>
-              <div className="flex items-baseline gap-1 tabular-nums font-mono">
-                <span className="text-3xl font-bold">{String(hoursLeft).padStart(2, '0')}</span>
-                <span className="text-lg opacity-50">:</span>
-                <span className="text-3xl font-bold">{String(minsLeft).padStart(2, '0')}</span>
-                <span className="text-lg opacity-50">:</span>
-                <span className="text-3xl font-bold">{String(secsLeft).padStart(2, '0')}</span>
-              </div>
-              <p className="text-xs mt-1.5 opacity-60">Batas: 20:00 WIB</p>
-            </div>
-          )}
-
-          <Card title="Hari Ini">
-            {todayAttendance ? (
-              <div className="space-y-3">
-                {todayAttendance.photo_data && (
-                  <div className="flex justify-center">
-                    <div className={`relative rounded-xl overflow-hidden border-2 ${
-                      todayAttendance.face_status === 'Matched' || todayAttendance.face_status === 'matched'
-                        ? 'border-emerald-400'
-                        : 'border-amber-400'
-                    }`}>
-                      <img
-                        src={todayAttendance.photo_data}
-                        alt="Verifikasi Wajah"
-                        className="w-32 h-32 object-cover"
-                      />
-                      <div className={`absolute bottom-0 left-0 right-0 px-2 py-1 text-center text-[11px] font-bold text-white ${
-                        todayAttendance.face_status === 'Matched' || todayAttendance.face_status === 'matched'
-                          ? 'bg-emerald-600/90'
-                          : 'bg-amber-500/90'
-                      }`}>
-                        {todayAttendance.face_score ?? 0}% Cocok
+                    {/* Times */}
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1">
+                        <Clock size={9} className="text-sky-500 flex-shrink-0" />
+                        <span className={`text-[10px] ${attendance.check_in_time ? 'text-gray-700 font-medium' : 'text-amber-500'}`}>
+                          {attendance.check_in_time ? formatTimeShort(attendance.check_in_time) : '—'}
+                        </span>
+                        {!attendance.check_in_time && isStaff && isPast(day) && (
+                          <button onClick={() => openCorrection(day, 'check_in')} className="text-[9px] text-sky-500 hover:text-sky-700 font-medium flex items-center gap-0.5 ml-auto" title="Ajukan perbaikan">
+                            <Send size={7} />
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock size={9} className="text-orange-500 flex-shrink-0" />
+                        <span className={`text-[10px] ${attendance.check_out_time ? 'text-gray-700 font-medium' : 'text-amber-500'}`}>
+                          {attendance.check_out_time ? formatTimeShort(attendance.check_out_time) : '—'}
+                        </span>
+                        {!attendance.check_out_time && isStaff && isPast(day) && (
+                          <button onClick={() => openCorrection(day, 'check_out')} className="text-[9px] text-sky-500 hover:text-sky-700 font-medium flex items-center gap-0.5 ml-auto" title="Ajukan perbaikan">
+                            <Send size={7} />
+                          </button>
+                        )}
                       </div>
                     </div>
-                  </div>
-                )}
 
-                <div className="space-y-0 divide-y divide-gray-100">
-                  <div className="flex items-center gap-3 py-3">
-                    <div className="p-1.5 rounded-md bg-gray-100">
-                      <Clock size={14} className="text-sky-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] text-gray-400 uppercase tracking-wide">Jam Masuk</p>
-                      {todayAttendance.check_in_time ? (
-                        <p className="text-sm font-medium text-gray-700">{formatTime(todayAttendance.check_in_time)}</p>
-                      ) : (
-                        <p className="text-sm font-medium text-amber-600">Kosong — menunggu admin</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 py-3">
-                    <div className="p-1.5 rounded-md bg-gray-100">
-                      <Clock size={14} className="text-orange-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] text-gray-400 uppercase tracking-wide">Jam Pulang</p>
-                      <p className="text-sm font-medium text-gray-700">{formatTime(todayAttendance.check_out_time)}</p>
-                    </div>
-                  </div>
+                    {/* Location */}
+                    {attendance.location?.location_name && (
+                      <div className="flex items-center gap-0.5">
+                        <MapPin size={8} className="text-emerald-500 flex-shrink-0" />
+                        <span className="text-[9px] text-gray-500 truncate">{attendance.location.location_name}</span>
+                      </div>
+                    )}
 
-                  <div className="flex items-start gap-3 py-3">
-                    <div className="p-1.5 rounded-md bg-gray-100">
-                      <MapPin size={14} className="text-emerald-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] text-gray-400 uppercase tracking-wide mb-1">Lokasi</p>
-                      {todayAttendance.location_status === 'Inside Radius' ? (
-                        <Badge variant="success" className="text-[11px]">Di Dalam Radius</Badge>
-                      ) : (
-                        <Badge variant="warning" className="text-[11px]">Luar Radius</Badge>
-                      )}
-                      <p className="text-xs text-gray-600 mt-1">{todayAttendance.location?.location_name || '-'}</p>
-                      {todayAttendance.distance != null && (
-                        <p className="text-[11px] text-gray-400 mt-0.5">Jarak: {Math.round(todayAttendance.distance)}m</p>
-                      )}
-                      {todayAttendance.latitude && todayAttendance.longitude && (
-                        <p className="text-[10px] text-gray-400 mt-0.5 font-mono">{todayAttendance.latitude.toFixed(6)}, {todayAttendance.longitude.toFixed(6)}</p>
-                      )}
-                    </div>
+                    {/* Status badge */}
+                    <div>{getStatusBadge(attendance.attendance_status)}</div>
                   </div>
-
-                  <div className="pt-3">
-                    <p className="text-[11px] text-gray-400 uppercase tracking-wide mb-1.5">Status</p>
-                    {getStatusBadge(todayAttendance.attendance_status)}
-                  </div>
-                </div>
-
-                {!todayAttendance.check_in_time && todayAttendance.check_out_time && (
-                  <div className="bg-amber-50 border border-amber-200/60 rounded-lg p-2.5 text-xs text-amber-700">
-                    Jam masuk kosong — menunggu disetujui admin
-                  </div>
-                )}
-
-                {todayAttendance.latitude && todayAttendance.longitude && todayAttendance.location && (
-                  <div className="pt-2">
-                    <LocationMap
-                      userLat={todayAttendance.latitude}
-                      userLng={todayAttendance.longitude}
-                      centerLat={todayAttendance.location.latitude}
-                      centerLng={todayAttendance.location.longitude}
-                      radius={todayAttendance.location.radius}
-                      locationName={todayAttendance.location.location_name}
-                    />
+                ) : (
+                  <div className="flex-1 flex items-center justify-center">
+                    {isPast(day) ? (
+                      <span className="text-[10px] text-red-300 font-medium">Alpha</span>
+                    ) : todayMark ? (
+                      <span className="text-[10px] text-gray-300">-</span>
+                    ) : null}
                   </div>
                 )}
               </div>
-            ) : (
-              <div className="text-center py-6">
-                <Clock size={28} className="mx-auto text-gray-300 mb-2" />
-                <p className="text-sm text-gray-400">Belum ada data hari ini</p>
-              </div>
-            )}
-          </Card>
+            )
+          })}
         </div>
-      </div>
+      </Card>
+
+      {/* Detailed Table */}
+      <Card title="Detail Kehadiran">
+        {monthLoading ? (
+          <div className="flex justify-center py-8"><div className="h-6 w-6 rounded-full border-2 border-sky-200 border-t-teal-600 animate-spin" /></div>
+        ) : (monthData?.data?.items || []).length === 0 ? (
+          <p className="text-center text-sm text-gray-400 py-8">Tidak ada data kehadiran bulan ini</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200/80">
+                  {!isStaff && <th className="px-3 py-2.5 text-left text-[11px] uppercase tracking-wider text-gray-500 font-medium">Karyawan</th>}
+                  <th className="px-3 py-2.5 text-left text-[11px] uppercase tracking-wider text-gray-500 font-medium">Tanggal</th>
+                  <th className="px-3 py-2.5 text-center text-[11px] uppercase tracking-wider text-gray-500 font-medium">Foto</th>
+                  <th className="px-3 py-2.5 text-center text-[11px] uppercase tracking-wider text-gray-500 font-medium">Wajah</th>
+                  <th className="px-3 py-2.5 text-left text-[11px] uppercase tracking-wider text-gray-500 font-medium">Jam Masuk</th>
+                  <th className="px-3 py-2.5 text-left text-[11px] uppercase tracking-wider text-gray-500 font-medium">Jam Pulang</th>
+                  <th className="px-3 py-2.5 text-left text-[11px] uppercase tracking-wider text-gray-500 font-medium">Lokasi + Alamat</th>
+                  <th className="px-3 py-2.5 text-center text-[11px] uppercase tracking-wider text-gray-500 font-medium">Status</th>
+                  {!isStaff && <th className="px-3 py-2.5 text-center text-[11px] uppercase tracking-wider text-gray-500 font-medium">Aksi</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {(monthData?.data?.items || []).map((item: Attendance) => {
+                  const dateStr = item.check_in_time
+                    ? new Date(item.check_in_time).toLocaleDateString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
+                    : item.check_out_time
+                      ? new Date(item.check_out_time).toLocaleDateString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
+                      : '-'
+
+                  return (
+                    <tr key={item.id} className="border-b border-gray-200/80 last:border-0 hover:bg-gray-50/50">
+                      {!isStaff && (
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-2">
+                            {item.photo_data ? (
+                              <img src={item.photo_data} alt="" className="w-7 h-7 rounded-full object-cover border border-gray-200 flex-shrink-0" />
+                            ) : (
+                              <div className="w-7 h-7 rounded-full gradient-primary flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+                                {item.employee?.name?.charAt(0)?.toUpperCase() || '?'}
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{item.employee?.name || '-'}</p>
+                              <p className="text-[10px] text-gray-400">{item.employee?.nik || ''}</p>
+                            </div>
+                          </div>
+                        </td>
+                      )}
+                      <td className="px-3 py-3 text-sm text-gray-700 whitespace-nowrap">{dateStr}</td>
+                      <td className="px-3 py-3 text-center">
+                        {item.photo_data ? (
+                          <div className={`inline-block relative w-10 h-10 rounded-lg overflow-hidden border-2 ${
+                            item.face_status === 'Matched' || item.face_status === 'matched' ? 'border-emerald-400' : 'border-amber-400'
+                          }`}>
+                            <img src={item.photo_data} alt="Wajah" className="w-full h-full object-cover" />
+                            <div className={`absolute bottom-0 inset-x-0 text-center text-[8px] font-bold text-white leading-tight ${
+                              item.face_status === 'Matched' || item.face_status === 'matched' ? 'bg-emerald-600/90' : 'bg-amber-500/90'
+                            }`}>
+                              {item.face_score ?? 0}%
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-300">-</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        {item.face_status && (
+                          <Badge variant={item.face_status === 'Matched' || item.face_status === 'matched' ? 'success' : 'warning'} className="text-[10px]">
+                            {item.face_status}
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="px-3 py-3">
+                        {item.check_in_time ? (
+                          <span className="text-sm font-medium text-gray-700">{formatTimeShort(item.check_in_time)}</span>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <span className="text-sm text-amber-500">—</span>
+                            {isStaff && isPast(new Date(item.check_out_time || item.created_at).getDate()) && (
+                              <button onClick={() => {
+                                const d = item.check_out_time || item.created_at
+                                const dateKey = new Date(d).toLocaleDateString('sv-SE')
+                                setCorrectionDate(dateKey)
+                                setCorrectionType('check_in')
+                                setCorrectionReason('')
+                                setShowCorrectionModal(true)
+                              }} className="text-sky-500 hover:text-sky-700 p-0.5 rounded hover:bg-sky-50 transition-colors" title="Ajukan perbaikan jam masuk">
+                                <Send size={12} />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-3">
+                        {item.check_out_time ? (
+                          <span className="text-sm font-medium text-gray-700">{formatTimeShort(item.check_out_time)}</span>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <span className="text-sm text-amber-500">—</span>
+                            {isStaff && isPast(new Date(item.check_in_time || item.created_at).getDate()) && (
+                              <button onClick={() => {
+                                const d = item.check_in_time || item.created_at
+                                const dateKey = new Date(d).toLocaleDateString('sv-SE')
+                                setCorrectionDate(dateKey)
+                                setCorrectionType('check_out')
+                                setCorrectionReason('')
+                                setShowCorrectionModal(true)
+                              }} className="text-sky-500 hover:text-sky-700 p-0.5 rounded hover:bg-sky-50 transition-colors" title="Ajukan perbaikan jam pulang">
+                                <Send size={12} />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex items-start gap-1.5">
+                          {item.location?.location_name && (
+                            <>
+                              <MapPin size={12} className="text-emerald-500 mt-0.5 flex-shrink-0" />
+                              <div className="min-w-0">
+                                <p className="text-xs text-gray-700">{item.location.location_name}</p>
+                                {item.location_status && (
+                                  <p className="text-[10px] text-gray-400">
+                                    {item.location_status}
+                                    {item.distance != null && ` (${Math.round(item.distance)}m)`}
+                                  </p>
+                                )}
+                              </div>
+                            </>
+                          )}
+                          {!item.location?.location_name && item.latitude && item.longitude && (
+                            <span className="text-[10px] text-gray-400">{item.latitude.toFixed(4)}, {item.longitude.toFixed(4)}</span>
+                          )}
+                          {!item.location?.location_name && !item.latitude && <span className="text-xs text-gray-300">-</span>}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-center">{getStatusBadge(item.attendance_status)}</td>
+                      {!isStaff && <td className="px-3 py-3 text-center">-</td>}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      {/* Presensi Modal */}
+      <PresensiModal
+        open={showPresensiModal}
+        onClose={() => setShowPresensiModal(false)}
+        todayAttendance={todayAttendance}
+      />
+
+      {/* Correction Modal */}
+      <Modal open={showCorrectionModal} onClose={() => setShowCorrectionModal(false)} title="Ajukan Perbaikan Kehadiran">
+        <div className="space-y-4">
+          <div className="bg-sky-50 border border-sky-200/60 rounded-lg p-3">
+            <p className="text-sm text-sky-800 font-medium">
+              {correctionType === 'check_in' ? 'Perbaikan Jam Masuk' : 'Perbaikan Jam Pulang'}
+            </p>
+            <p className="text-xs text-sky-600 mt-0.5">Tanggal: {new Date(correctionDate + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[11px] uppercase tracking-wider font-medium text-gray-500">Alasan Perbaikan</label>
+            <textarea
+              value={correctionReason}
+              onChange={(e) => setCorrectionReason(e.target.value)}
+              rows={3}
+              placeholder="Jelaskan alasan perbaikan (misal: lupa check-in, lupa check-out)..."
+              className="w-full px-3 py-2 border border-gray-200/80 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-colors"
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setShowCorrectionModal(false)}>Batal</Button>
+            <Button
+              loading={createCorrection.isPending}
+              disabled={!correctionReason.trim() || correctionReason.trim().length < 10}
+              onClick={() => createCorrection.mutate({
+                date: correctionDate,
+                ...(correctionType === 'check_in' ? { check_in_time: '00:00' } : { check_out_time: '00:00' }),
+                reason: correctionReason,
+              })}
+            >
+              <Send size={14} className="mr-2" /> Kirim Pengajuan
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

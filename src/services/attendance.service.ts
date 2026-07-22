@@ -29,6 +29,9 @@ export const attendanceService = {
     page?: number
     per_page?: number
     date?: string
+    month?: number
+    year?: number
+    employee_id?: number
     department_id?: number
     status?: string
     search?: string
