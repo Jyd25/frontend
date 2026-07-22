@@ -2,7 +2,7 @@ import { Outlet, Navigate, Link, useLocation, useNavigate } from 'react-router-d
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useLogout, useProfile } from '@/hooks/useAuth'
 import { LogOut, LayoutDashboard, Users, Building2, Briefcase, Clock, MapPin, CalendarCheck, Bell, Menu, X, UserCog, FileText, AlertTriangle, Download, Camera, AlertCircle } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import Logo from '@/components/ui/Logo'
@@ -61,11 +61,16 @@ export default function MainLayout() {
     staleTime: 60000,
   })
 
+  const prevProfileRef = useRef<string | null>(null)
   useEffect(() => {
-    if (profileData && !user) {
-      setUser(profileData)
+    if (profileData) {
+      const serialized = JSON.stringify(profileData)
+      if (serialized !== prevProfileRef.current) {
+        prevProfileRef.current = serialized
+        setUser(profileData)
+      }
     }
-  }, [profileData, user, setUser])
+  }, [profileData, setUser])
 
   useEffect(() => {
     if (todayAttendance === null && !sessionStorage.getItem('absen_popup_shown')) {

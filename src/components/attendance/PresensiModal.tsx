@@ -312,13 +312,11 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
 
   const currentHour = now.getHours()
   const currentMinute = now.getHours() * 60 + now.getMinutes()
-  const presensiStartMinute = 5 * 60
   const presensiDeadlineMinute = 10 * 60
 
-  const isBeforePresensi = currentMinute < presensiStartMinute
   const isPastDeadline = currentMinute >= presensiDeadlineMinute
 
-  const showCheckIn = !isCheckedIn && !isCheckedOut && !isBeforePresensi && !isPastDeadline
+  const showCheckIn = !isCheckedIn && !isCheckedOut && !isPastDeadline
   const showCheckOutLate = !isCheckedIn && !isCheckedOut && isPastDeadline
   const showCheckOutNormal = isCheckedIn && !isCheckedOut
   const showDone = isCheckedOut
@@ -359,10 +357,8 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
               : showCheckOutNormal
                 ? 'Check-in sudah tercatat. Silakan lakukan check-out.'
                 : showCheckOutLate
-                  ? 'Lewat pukul 10:00. Silakan lakukan check-out (check-in kosong, menunggu admin).'
-                  : isBeforePresensi
-                    ? 'Presensi belum dibuka. Buka mulai pukul 05:00.'
-                    : 'Lakukan check-in untuk memulai hari kerja.'}
+                  ? 'Lewat pukul 10:00. Silakan lakukan check-out.'
+                  : 'Lakukan check-in untuk memulai hari kerja.'}
           </p>
           {showCheckOutNormal && todayAttendance && (
             <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
