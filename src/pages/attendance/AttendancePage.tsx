@@ -250,10 +250,10 @@ export default function AttendancePage() {
                     </div>
 
                     {/* Location */}
-                    {attendance.location?.location_name && (
+                    {(attendance.address || attendance.location?.location_name) && (
                       <div className="flex items-center gap-0.5">
                         <MapPin size={8} className="text-emerald-500 flex-shrink-0" />
-                        <span className="text-[9px] text-gray-500 truncate">{attendance.location.location_name}</span>
+                        <span className="text-[9px] text-gray-500 truncate">{attendance.address || attendance.location?.location_name}</span>
                       </div>
                     )}
 
@@ -288,8 +288,7 @@ export default function AttendancePage() {
                 <tr className="bg-gray-50 border-b border-gray-200/80">
                   {!isStaff && <th className="px-3 py-2.5 text-left text-[11px] uppercase tracking-wider text-gray-500 font-medium">Karyawan</th>}
                   <th className="px-3 py-2.5 text-left text-[11px] uppercase tracking-wider text-gray-500 font-medium">Tanggal</th>
-                  <th className="px-3 py-2.5 text-center text-[11px] uppercase tracking-wider text-gray-500 font-medium">Foto</th>
-                  <th className="px-3 py-2.5 text-center text-[11px] uppercase tracking-wider text-gray-500 font-medium">Wajah</th>
+                  <th className="px-3 py-2.5 text-center text-[11px] uppercase tracking-wider text-gray-500 font-medium">Verifikasi Wajah</th>
                   <th className="px-3 py-2.5 text-left text-[11px] uppercase tracking-wider text-gray-500 font-medium">Jam Masuk</th>
                   <th className="px-3 py-2.5 text-left text-[11px] uppercase tracking-wider text-gray-500 font-medium">Jam Pulang</th>
                   <th className="px-3 py-2.5 text-left text-[11px] uppercase tracking-wider text-gray-500 font-medium">Lokasi + Alamat</th>
@@ -341,13 +340,6 @@ export default function AttendancePage() {
                           <span className="text-xs text-gray-300">-</span>
                         )}
                       </td>
-                      <td className="px-3 py-3 text-center">
-                        {item.face_status && (
-                          <Badge variant={item.face_status === 'Matched' || item.face_status === 'matched' ? 'success' : 'warning'} className="text-[10px]">
-                            {item.face_status}
-                          </Badge>
-                        )}
-                      </td>
                       <td className="px-3 py-3">
                         {item.check_in_time ? (
                           <span className="text-sm font-medium text-gray-700">{formatTimeShort(item.check_in_time)}</span>
@@ -392,24 +384,25 @@ export default function AttendancePage() {
                       </td>
                       <td className="px-3 py-3">
                         <div className="flex items-start gap-1.5">
-                          {item.location?.location_name && (
-                            <>
-                              <MapPin size={12} className="text-emerald-500 mt-0.5 flex-shrink-0" />
-                              <div className="min-w-0">
-                                <p className="text-xs text-gray-700">{item.location.location_name}</p>
-                                {item.location_status && (
-                                  <p className="text-[10px] text-gray-400">
-                                    {item.location_status}
-                                    {item.distance != null && ` (${Math.round(item.distance)}m)`}
-                                  </p>
-                                )}
-                              </div>
-                            </>
-                          )}
-                          {!item.location?.location_name && item.latitude && item.longitude && (
-                            <span className="text-[10px] text-gray-400">{item.latitude.toFixed(4)}, {item.longitude.toFixed(4)}</span>
-                          )}
-                          {!item.location?.location_name && !item.latitude && <span className="text-xs text-gray-300">-</span>}
+                          <MapPin size={12} className="text-emerald-500 mt-0.5 flex-shrink-0" />
+                          <div className="min-w-0">
+                            {item.address ? (
+                              <p className="text-xs text-gray-700 leading-relaxed">{item.address}</p>
+                            ) : item.location?.location_name ? (
+                              <p className="text-xs text-gray-700">{item.location.location_name}</p>
+                            ) : (
+                              <span className="text-xs text-gray-300">-</span>
+                            )}
+                            {item.location?.location_name && (
+                              <p className="text-[10px] text-gray-400 mt-0.5">{item.location.location_name}</p>
+                            )}
+                            {item.location_status && (
+                              <p className="text-[10px] text-gray-400">
+                                {item.location_status}
+                                {item.distance != null && ` (${Math.round(item.distance)}m)`}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="px-3 py-3 text-center">{getStatusBadge(item.attendance_status)}</td>

@@ -72,7 +72,7 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
   }, [])
 
   const checkInMutation = useMutation({
-    mutationFn: (payload: { latitude: number; longitude: number; location_id?: number; face_score?: number; face_status?: string; photo_data?: string }) =>
+    mutationFn: (payload: { latitude: number; longitude: number; location_id?: number; face_score?: number; face_status?: string; photo_data?: string; address?: string }) =>
       attendanceService.checkIn(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance-today'] })
@@ -149,6 +149,7 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
         face_score: faceResult?.score,
         face_status: faceResult?.matched ? 'matched' : 'unmatched',
         photo_data: capturedFacePhoto || undefined,
+        address: address || undefined,
       })
     } else {
       checkOutMutation.mutate({
@@ -230,7 +231,7 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
     setCameraError(null)
     setCountdown(null)
     setCapturedFacePhoto(null)
-    setIsLatePresensi(type === 'check_in' && new Date().getHours() >= 10)
+    setIsLatePresensi(new Date().getHours() >= 10)
     faceDetectedSinceRef.current = null
     setStep('face')
 
@@ -306,7 +307,8 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
   const isCheckedOut = todayAttendance && todayAttendance.check_out_time
 
   const currentHour = now.getHours()
-  const isPastCheckinDeadline = currentHour >= CHECKIN_DEADLINE_HOUR && !isCheckedIn
+  const isLatePresensiTime = currentHour >= CHECKIN_DEADLINE_HOUR
+  const shouldShowCheckOut = isCheckedIn || isLatePresensiTime
 
   if (!open) return null
 
@@ -321,8 +323,8 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
                 <CheckCircle2 size={32} className="text-emerald-600" />
               </div>
             ) : (
-              <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full ring-1 ${isPastCheckinDeadline ? 'bg-amber-50 ring-amber-500/10' : 'bg-gray-100 ring-gray-200'}`}>
-                {isPastCheckinDeadline ? <AlertTriangle size={32} className="text-amber-600" /> : <Clock size={32} className="text-gray-400" />}
+              <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full ring-1 ${isLatePresensiTime ? 'bg-amber-50 ring-amber-500/10' : 'bg-gray-100 ring-gray-200'}`}>
+                {isLatePresensiTime ? <AlertTriangle size={32} className="text-amber-600" /> : <Clock size={32} className="text-gray-400" />}
               </div>
             )}
           </div>
@@ -331,8 +333,8 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
               ? isCheckedOut
                 ? 'Anda sudah check-in dan check-out hari ini.'
                 : 'Menunggu waktu check-out.'
-              : isPastCheckinDeadline
-                ? 'Lewat pukul 10:00. Jam masuk tercatat kosong.'
+              : isLatePresensiTime
+                ? 'Lewat pukul 10:00. Jam masuk tercatat kosong, langsung check-out.'
                 : 'Lakukan check-in untuk memulai hari kerja.'}
           </p>
           {isCheckedIn && todayAttendance && (
@@ -351,12 +353,12 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
             </div>
           )}
           <div className="space-y-3">
-            {!isCheckedIn && modelsReady && (
+            {!isCheckedIn && !isCheckedOut && modelsReady && (
               <Button size="lg" onClick={() => startAttendance('check_in')} className="w-full min-w-[200px]">
-                <Fingerprint size={18} className="mr-2" /> {isPastCheckinDeadline ? 'Presensi' : 'Check In'}
+                <Fingerprint size={18} className="mr-2" /> {isLatePresensiTime ? 'Check Out' : 'Check In'}
               </Button>
             )}
-            {!isCheckedIn && !modelsReady && (
+            {!isCheckedIn && !isCheckedOut && !modelsReady && (
               <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
                 <Loader2 size={14} className="animate-spin" /> Memuat model wajah...
               </div>

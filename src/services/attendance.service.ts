@@ -13,6 +13,7 @@ export const attendanceService = {
     face_score?: number;
     face_status?: string;
     photo_data?: string;
+    address?: string;
   }) => {
     const { data } = await api.post<ApiResponse<Attendance>>('/attendances/check-in', payload)
     return data.data
