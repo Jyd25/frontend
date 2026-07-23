@@ -195,8 +195,8 @@ export default function EmployeeFormPage() {
                   className="w-full px-3 py-2 border border-gray-200/80 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400"
                 >
                   <option value="">Pilih Gender</option>
-                  <option value="Laki-laki">Laki-laki</option>
-                  <option value="Perempuan">Perempuan</option>
+                  <option value="male">Laki-laki</option>
+                  <option value="female">Perempuan</option>
                 </select>
                 {errors.gender?.message && <p className="text-xs text-red-500">{errors.gender.message}</p>}
               </div>

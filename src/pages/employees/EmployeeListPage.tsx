@@ -62,8 +62,8 @@ export default function EmployeeListPage() {
       key: 'gender',
       header: 'Gender',
       render: (item: Employee) => (
-        <Badge variant={item.gender === 'Laki-laki' ? 'info' : 'warning'}>
-          {item.gender}
+        <Badge variant={item.gender === 'male' ? 'info' : 'warning'}>
+          {item.gender === 'male' ? 'Laki-laki' : 'Perempuan'}
         </Badge>
       ),
     },
