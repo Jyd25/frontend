@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Plus, Search, Pencil, Trash2, Shield } from 'lucide-react'
 import { userService, type CreateUserPayload } from '@/services/user.service'
+import api from '@/lib/axios'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Card from '@/components/ui/Card'
@@ -10,13 +11,6 @@ import DataTable from '@/components/ui/DataTable'
 import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
 import type { User } from '@/types/api'
-
-const ROLES = [
-  { id: 0, name: 'Administrator' },
-  { id: 0, name: 'Pimpinan' },
-  { id: 0, name: 'Guru' },
-  { id: 0, name: 'Karyawan' },
-]
 
 export default function UserListPage() {
   const queryClient = useQueryClient()
@@ -51,14 +45,35 @@ export default function UserListPage() {
   const { data: rolesData } = useQuery({
     queryKey: ['roles-list'],
     queryFn: async () => {
-      const { default: api } = await import('@/lib/axios')
       const { data } = await api.get('/roles')
       return data.data as { id: number; name: string }[]
     },
     staleTime: 60000,
   })
 
-  const roleOptions = rolesData || ROLES
+  const { data: employeesData } = useQuery({
+    queryKey: ['employees-all'],
+    queryFn: async () => {
+      const { data } = await api.get('/employees', { params: { per_page: 200 } })
+      return (data.data?.items || data.data || []) as { id: number; name: string; nik: string; position?: { id: number; name: string; role?: { id: number; name: string } } }[]
+    },
+    staleTime: 30000,
+  })
+
+  const roleOptions = rolesData || []
+
+  const autoRoleFromEmployee = (employeeId: number | null) => {
+    if (!employeeId || !employeesData) return
+    const emp = employeesData.find((e) => e.id === employeeId)
+    if (emp?.position?.role) {
+      setForm((prev) => ({ ...prev, employee_id: employeeId, role_id: emp.position!.role!.id, name: prev.name || emp.name, email: prev.email || '' }))
+    } else {
+      setForm((prev) => ({ ...prev, employee_id: employeeId }))
+    }
+  }
+
+  const selectedEmployee = form.employee_id ? employeesData?.find((e) => e.id === form.employee_id) : null
+  const autoRoleName = selectedEmployee?.position?.role?.name
 
   const createMutation = useMutation({
     mutationFn: (payload: CreateUserPayload) => userService.create(payload),
@@ -139,7 +154,7 @@ export default function UserListPage() {
     }
 
     if (formModal.user) {
-      const payload: any = { name: form.name, email: form.email, role_id: form.role_id, status: form.status }
+      const payload: any = { name: form.name, email: form.email, role_id: form.role_id, status: form.status, employee_id: form.employee_id }
       if (form.password) {
         payload.password = form.password
         payload.password_confirmation = form.password_confirmation
@@ -272,6 +287,25 @@ export default function UserListPage() {
         className="max-w-xl"
       >
         <div className="space-y-4">
+          <div className="space-y-1">
+            <label className="block text-[11px] uppercase tracking-wider text-gray-500">Karyawan (Opsional)</label>
+            <select
+              value={form.employee_id ?? ''}
+              onChange={(e) => {
+                const val = e.target.value ? Number(e.target.value) : null
+                autoRoleFromEmployee(val)
+              }}
+              className="w-full px-3 py-2 border border-gray-200/80 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400"
+            >
+              <option value="">Tidak dikaitkan</option>
+              {employeesData?.map((emp) => (
+                <option key={emp.id} value={emp.id}>{emp.name} — {emp.position?.name || '-'}</option>
+              ))}
+            </select>
+            {selectedEmployee?.position && (
+              <p className="text-[11px] text-sky-600 mt-1">Jabatan: {selectedEmployee.position.name}</p>
+            )}
+          </div>
           <Input
             label="Nama"
             value={form.name}
@@ -299,16 +333,23 @@ export default function UserListPage() {
           )}
           <div className="space-y-1">
             <label className="block text-[11px] uppercase tracking-wider text-gray-500">Role</label>
-            <select
-              value={form.role_id}
-              onChange={(e) => setForm({ ...form, role_id: Number(e.target.value) })}
-              className="w-full px-3 py-2 border border-gray-200/80 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400"
-            >
-              <option value={0}>Pilih Role</option>
-              {roleOptions.map((r) => (
-                <option key={r.id} value={r.id}>{r.name}</option>
-              ))}
-            </select>
+            {autoRoleName ? (
+              <div className="flex items-center gap-2">
+                {getRoleBadge(autoRoleName)}
+                <span className="text-[11px] text-gray-400">Otomatis dari jabatan</span>
+              </div>
+            ) : (
+              <select
+                value={form.role_id}
+                onChange={(e) => setForm({ ...form, role_id: Number(e.target.value) })}
+                className="w-full px-3 py-2 border border-gray-200/80 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400"
+              >
+                <option value={0}>Pilih Role</option>
+                {roleOptions.map((r) => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
+              </select>
+            )}
           </div>
           <div className="space-y-1">
             <label className="block text-[11px] uppercase tracking-wider text-gray-500">Status</label>

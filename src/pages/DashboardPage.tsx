@@ -616,16 +616,22 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <CardTitle className="text-sm">Jadwal Kerja</CardTitle>
-                  <CardDescription>Jadwal kehadiran Anda</CardDescription>
+                  <CardDescription>{stats?.schedule?.name || 'Jadwal kehadiran Anda'}</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {[
-                  { icon: Briefcase, label: 'Jam Kerja', value: stats?.schedule?.start_time && stats?.schedule?.end_time ? `${stats.schedule.start_time} — ${stats.schedule.end_time} WIB` : '07:00 — 16:00 WIB', color: 'bg-sky-50 text-sky-600' },
-                  { icon: Clock, label: 'Batas Check-In', value: stats?.schedule?.presensi_start ? `${stats.schedule.presensi_start} WIB` : '07:00 WIB', color: 'bg-amber-50 text-amber-600' },
-                  { icon: Clock, label: 'Batas Check-Out', value: stats?.schedule?.presensi_deadline ? `${stats.schedule.presensi_deadline} WIB` : '16:00 WIB', color: 'bg-amber-50 text-amber-600' },
+                  { icon: Briefcase, label: 'Jam Kerja', value: stats?.schedule?.start_time && stats?.schedule?.end_time ? `${stats.schedule.start_time} — ${stats.schedule.end_time} WIB` : '-', color: 'bg-sky-50 text-sky-600' },
+                  { icon: Clock, label: 'Batas Check-In', value: stats?.schedule?.presensi_start ? `${stats.schedule.presensi_start} WIB` : '-', color: 'bg-amber-50 text-amber-600' },
+                  { icon: Clock, label: 'Deadline Check-In', value: stats?.schedule?.presensi_deadline ? `${stats.schedule.presensi_deadline} WIB` : '-', color: 'bg-orange-50 text-orange-600' },
+                  ...(stats?.schedule?.break_start && stats?.schedule?.break_end ? [
+                    { icon: Clock, label: 'Jam Istirahat', value: `${stats.schedule.break_start} — ${stats.schedule.break_end} WIB`, color: 'bg-purple-50 text-purple-600' },
+                  ] : []),
+                  ...(stats?.schedule?.tolerance_minutes ? [
+                    { icon: AlertTriangle, label: 'Toleransi Keterlambatan', value: `${stats.schedule.tolerance_minutes} menit`, color: 'bg-rose-50 text-rose-600' },
+                  ] : []),
                   { icon: MapPin, label: 'Lokasi', value: 'Jl. Rancamaya No.30, Bogor', color: 'bg-teal-50 text-teal-600' },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50/80 hover:bg-gray-50 transition-colors">
@@ -639,6 +645,21 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
+              {stats?.schedule?.working_days && stats.schedule.working_days.length > 0 && (
+                <div className="mt-3 p-3 rounded-xl bg-gray-50/80">
+                  <p className="text-[10px] text-gray-400 uppercase font-medium tracking-wider mb-2">Hari Kerja</p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map((day, i) => {
+                      const active = stats.schedule!.working_days!.includes(i)
+                      return (
+                        <span key={i} className={`text-[11px] font-medium px-2 py-0.5 rounded-md ${active ? 'bg-sky-100 text-sky-700' : 'bg-gray-100 text-gray-400 line-through'}`}>
+                          {day}
+                        </span>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <div className="rounded-xl gradient-primary-subtle border border-sky-100 p-3.5">
                   <p className="text-xs font-semibold text-gray-800">Cahaya Rancamaya Islamic Boarding School</p>

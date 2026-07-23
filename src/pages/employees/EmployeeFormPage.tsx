@@ -49,6 +49,7 @@ export default function EmployeeFormPage() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -59,6 +60,8 @@ export default function EmployeeFormPage() {
       schedule_id: '',
     },
   })
+
+  const watchPosition = watch('position_id')
 
   const { data: existingEmployee, isLoading: loadingEmployee } = useQuery({
     queryKey: ['employee', id],
@@ -241,6 +244,20 @@ export default function EmployeeFormPage() {
                   ))}
                 </select>
                 {errors.position_id?.message && <p className="text-xs text-red-500">{errors.position_id.message}</p>}
+                {(() => {
+                  const selectedPos = posList.find((p) => p.id?.toString() === watchPosition)
+                  if (selectedPos?.role) {
+                    return (
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-sky-50 text-sky-700 ring-1 ring-sky-500/20">
+                          Role: {selectedPos.role.name}
+                        </span>
+                        <span className="text-[10px] text-gray-400">Hak akses otomatis</span>
+                      </div>
+                    )
+                  }
+                  return null
+                })()}
               </div>
               <div className="space-y-1">
                 <label className="block text-[11px] uppercase tracking-wider text-gray-500">Jadwal</label>

@@ -21,8 +21,13 @@ interface MyAttendance {
 }
 
 interface ScheduleInfo {
+  name?: string
   start_time?: string
   end_time?: string
+  break_start?: string
+  break_end?: string
+  tolerance_minutes?: number
+  working_days?: number[]
   presensi_start?: string
   presensi_deadline?: string
 }

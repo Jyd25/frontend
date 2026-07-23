@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { CheckCircle, XCircle, Camera, Upload, Trash2 } from 'lucide-react'
@@ -142,6 +142,20 @@ function FaceRequestForm({ open, onClose }: { open: boolean; onClose: () => void
   const [capturedImage, setCapturedImage] = useState<string | null>(null)
   const [pendingFile, setPendingFile] = useState<File | null>(null)
 
+  useEffect(() => {
+    if (!open) return
+    const timer = setTimeout(() => {
+      if (step === 'camera') {
+        startCamera().then((ok) => { if (ok) startDetection() })
+      }
+    }, 200)
+    return () => {
+      clearTimeout(timer)
+      stopCamera()
+      stopDetection()
+    }
+  }, [open, step])
+
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!descriptor) throw new Error('No descriptor')
@@ -166,11 +180,6 @@ function FaceRequestForm({ open, onClose }: { open: boolean; onClose: () => void
     setCapturedImage(null)
     setPendingFile(null)
     onClose()
-  }
-
-  async function handleOpen() {
-    await startCamera()
-    startDetection()
   }
 
   async function handleCapture() {
@@ -254,7 +263,7 @@ function FaceRequestForm({ open, onClose }: { open: boolean; onClose: () => void
           <div className="space-y-3">
             {capturedImage && <img src={capturedImage} alt="Preview" className="w-full rounded-xl max-h-[300px] object-contain" />}
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => { setStep('camera'); setDescriptor(null); setCapturedImage(null); setPendingFile(null); handleOpen() }} className="flex-1">Ulangi</Button>
+              <Button variant="outline" onClick={() => { setStep('camera'); setDescriptor(null); setCapturedImage(null); setPendingFile(null) }} className="flex-1">Ulangi</Button>
               <Button onClick={() => submitMutation.mutate()} loading={submitMutation.isPending} className="flex-1">
                 <Camera size={16} className="mr-2" /> Ajukan Perubahan
               </Button>
