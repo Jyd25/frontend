@@ -312,11 +312,13 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
 
   const currentHour = now.getHours()
   const currentMinute = now.getHours() * 60 + now.getMinutes()
+  const presensiStartMinute = 3 * 60
   const presensiDeadlineMinute = 10 * 60
 
+  const isBeforePresensi = currentMinute < presensiStartMinute
   const isPastDeadline = currentMinute >= presensiDeadlineMinute
 
-  const showCheckIn = !isCheckedIn && !isCheckedOut && !isPastDeadline
+  const showCheckIn = !isCheckedIn && !isCheckedOut && !isPastDeadline && !isBeforePresensi
   const showCheckOutLate = !isCheckedIn && !isCheckedOut && isPastDeadline
   const showCheckOutNormal = isCheckedIn && !isCheckedOut
   const showDone = isCheckedOut
@@ -337,6 +339,10 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-50 ring-1 ring-emerald-500/10">
                 <CheckCircle2 size={32} className="text-emerald-600" />
               </div>
+            ) : isBeforePresensi ? (
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-sky-50 ring-1 ring-sky-500/10">
+                <Clock size={32} className="text-sky-600" />
+              </div>
             ) : showCheckOutLate ? (
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-50 ring-1 ring-amber-500/10">
                 <AlertTriangle size={32} className="text-amber-600" />
@@ -354,11 +360,13 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
           <p className="text-sm text-gray-600">
             {showDone
               ? 'Anda sudah check-in dan check-out hari ini.'
-              : showCheckOutNormal
-                ? 'Check-in sudah tercatat. Silakan lakukan check-out.'
-                : showCheckOutLate
-                  ? 'Lewat pukul 10:00. Silakan lakukan check-out.'
-                  : 'Lakukan check-in untuk memulai hari kerja.'}
+              : isBeforePresensi
+                ? 'Belum waktu presensi. Waktu check-in dimulai pukul 03:00 WIB.'
+                : showCheckOutNormal
+                  ? 'Check-in sudah tercatat. Silakan lakukan check-out.'
+                  : showCheckOutLate
+                    ? 'Lewat pukul 10:00. Silakan lakukan check-out.'
+                    : 'Lakukan check-in untuk memulai hari kerja.'}
           </p>
           {showCheckOutNormal && todayAttendance && (
             <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
@@ -375,6 +383,12 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
             </div>
           )}
           <div className="space-y-3">
+            {isBeforePresensi && (
+              <div className="flex items-center justify-center gap-2 text-sm text-sky-600 bg-sky-50 rounded-lg p-3">
+                <Clock size={14} />
+                <span>Waktu presensi dimulai pukul 03:00 WIB</span>
+              </div>
+            )}
             {showCheckIn && modelsReady && (
               <Button size="lg" onClick={() => startAttendance('check_in')} className="w-full min-w-[200px]">
                 <Fingerprint size={18} className="mr-2" /> Check In

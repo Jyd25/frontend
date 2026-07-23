@@ -8,55 +8,72 @@ import Input from '@/components/ui/Input'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 
-function exportToCSV(data: ExportData) {
-  const rows: string[] = []
-  rows.push(['NIK', 'Nama', 'Departemen', 'Jabatan', 'Tanggal', 'Jam Masuk', 'Jam Pulang', 'Status', 'Lokasi', 'Face'].join(','))
+async function exportToPDF(data: ExportData) {
+  const [{ default: jsPDF }, autoTable] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ])
+
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+
+  doc.setFontSize(16)
+  doc.text(data.title, doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' })
+  doc.setFontSize(11)
+  doc.text('Periode: ' + data.period, doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' })
+
+  let yOffset = 30
+
   for (const emp of data.items) {
-    for (const r of emp.records) {
-      rows.push([emp.nik, emp.name, emp.department, emp.position, r.date, r.check_in, r.check_out, r.status, r.location, r.face].join(','))
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`${emp.nik} - ${emp.name} (${emp.department} / ${emp.position})`, 14, yOffset)
+    yOffset += 2
+
+    const rows = emp.records.map((r) => [r.date, r.check_in, r.check_out, r.status, r.location, r.face])
+
+    ;(doc as any).autoTable({
+      startY: yOffset,
+      head: [['Tanggal', 'Masuk', 'Pulang', 'Status', 'Lokasi', 'Face']],
+      body: rows,
+      theme: 'grid',
+      headStyles: { fillColor: [14, 165, 233], textColor: 255, fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { fontSize: 9 },
+      margin: { left: 14, right: 14 },
+    })
+
+    yOffset = (doc as any).lastAutoTable.finalY + 8
+
+    if (yOffset > doc.internal.pageSize.getHeight() - 20) {
+      doc.addPage()
+      yOffset = 15
     }
   }
-  const blob = new Blob(['\uFEFF' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `laporan-kehadiran-${data.period.replace(/\s/g, '')}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+
+  doc.save(`laporan-kehadiran-${data.period.replace(/\s/g, '')}.pdf`)
 }
 
-function exportToHTML(data: ExportData) {
-  let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Laporan Kehadiran</title>
-  <style>
-    body{font-family:Arial,sans-serif;padding:20px;font-size:12px}
-    h1{text-align:center;font-size:18px;margin-bottom:4px}
-    h2{text-align:center;font-size:14px;color:#666;margin-bottom:20px}
-    table{width:100%;border-collapse:collapse;margin-bottom:20px}
-    th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}
-    th{background:linear-gradient(135deg,#0ea5e9,#0d9488);color:white;font-weight:600}
-    tr:nth-child(even){background:#f9f9f9}
-    .emp-header{background:#f3f4f6;padding:8px 12px;font-weight:700;font-size:13px;border:1px solid #ddd}
-    @media print{body{padding:10px}}
-  </style></head><body>
-  <h1>${data.title}</h1><h2>Periode: ${data.period}</h2>`
+async function exportToExcel(data: ExportData) {
+  const XLSX = await import('xlsx')
 
+  const wb = XLSX.utils.book_new()
+
+  const rows: any[][] = [['NIK', 'Nama', 'Departemen', 'Jabatan', 'Tanggal', 'Jam Masuk', 'Jam Pulang', 'Status', 'Lokasi', 'Face']]
   for (const emp of data.items) {
-    html += `<div class="emp-header">${emp.nik} - ${emp.name} (${emp.department} / ${emp.position})</div>`
-    html += '<table><thead><tr><th>Tanggal</th><th>Masuk</th><th>Pulang</th><th>Status</th><th>Lokasi</th><th>Face</th></tr></thead><tbody>'
     for (const r of emp.records) {
-      html += `<tr><td>${r.date}</td><td>${r.check_in}</td><td>${r.check_out}</td><td>${r.status}</td><td>${r.location}</td><td>${r.face}</td></tr>`
+      rows.push([emp.nik, emp.name, emp.department, emp.position, r.date, r.check_in, r.check_out, r.status, r.location, r.face])
     }
-    html += '</tbody></table>'
   }
 
-  html += '</body></html>'
-  const blob = new Blob([html], { type: 'text/html' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `laporan-kehadiran-${data.period.replace(/\s/g, '')}.html`
-  a.click()
-  URL.revokeObjectURL(url)
+  const ws = XLSX.utils.aoa_to_sheet(rows)
+
+  ws['!cols'] = [
+    { wch: 15 }, { wch: 25 }, { wch: 20 }, { wch: 20 },
+    { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 },
+    { wch: 20 }, { wch: 8 },
+  ]
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Laporan Kehadiran')
+  XLSX.writeFile(wb, `laporan-kehadiran-${data.period.replace(/\s/g, '')}.xlsx`)
 }
 
 export default function ExportPage() {
@@ -71,7 +88,7 @@ export default function ExportPage() {
     staleTime: 60000,
   })
 
-  const handleExport = async (format: 'csv' | 'html') => {
+  const handleExport = async (format: 'pdf' | 'excel') => {
     if (!startDate || !endDate) return
     try {
       const data = await exportService.getAttendance({
@@ -81,8 +98,8 @@ export default function ExportPage() {
         format,
       })
       setResult(data)
-      if (format === 'csv') exportToCSV(data)
-      else exportToHTML(data)
+      if (format === 'pdf') await exportToPDF(data)
+      else await exportToExcel(data)
     } catch {
       (await import('sonner')).toast.error('Gagal mengambil data')
     }
@@ -107,17 +124,16 @@ export default function ExportPage() {
             </select>
           </div>
           <div className="flex gap-2">
-            <Button onClick={() => handleExport('csv')} disabled={!startDate || !endDate}>
-              <Download size={14} className="mr-1" /> CSV
+            <Button onClick={() => handleExport('pdf')} disabled={!startDate || !endDate}>
+              <FileText size={14} className="mr-1" /> PDF
             </Button>
-            <Button onClick={() => handleExport('html')} disabled={!startDate || !endDate} variant="outline">
-              <FileText size={14} className="mr-1" /> Print
+            <Button onClick={() => handleExport('excel')} disabled={!startDate || !endDate} variant="outline">
+              <Download size={14} className="mr-1" /> Excel
             </Button>
           </div>
         </div>
       </Card>
 
-      {/* Quick presets */}
       <Card title="Cepat">
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => {
@@ -144,7 +160,6 @@ export default function ExportPage() {
         </div>
       </Card>
 
-      {/* Preview */}
       {result && (
         <Card title={`Preview: ${result.title} (${result.period})`}>
           {result.items.length === 0 ? (

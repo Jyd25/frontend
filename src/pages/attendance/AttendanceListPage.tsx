@@ -45,6 +45,7 @@ export default function AttendanceListPage() {
   const [dateFilter, setDateFilter] = useState('')
   const [deptFilter, setDeptFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
   const { user } = useAuthStore()
   const isStaff = ['Guru', 'Karyawan'].includes(user?.role?.name ?? '')
 
@@ -55,7 +56,7 @@ export default function AttendanceListPage() {
   })
 
   const { data, isLoading } = useQuery({
-    queryKey: ['attendances', page, dateFilter, deptFilter, statusFilter],
+    queryKey: ['attendances', page, dateFilter, deptFilter, statusFilter, searchTerm],
     queryFn: () =>
       attendanceService.getAll({
         page,
@@ -63,6 +64,7 @@ export default function AttendanceListPage() {
         date: dateFilter || undefined,
         department_id: deptFilter ? Number(deptFilter) : undefined,
         status: statusFilter || undefined,
+        search: searchTerm || undefined,
       }),
     staleTime: 10000,
   })
@@ -179,6 +181,16 @@ const columns = [
 
       <Card>
         <div className="flex flex-wrap gap-4 mb-4">
+          <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+            <Search size={16} className="text-gray-400" />
+            <input
+              type="text"
+              placeholder="Cari nama / NIK..."
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setPage(1) }}
+              className="w-full px-3 py-2 border border-gray-200/80 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-colors"
+            />
+          </div>
           <div className="flex items-center gap-2">
             <Calendar size={16} className="text-gray-400" />
             <Input
