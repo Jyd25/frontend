@@ -70,6 +70,7 @@ export default function MainLayout() {
         const currentEmployee = user.employee
         const newEmployee = (profileData as any).employee
         if (currentEmployee?.photo && !newEmployee?.photo) return
+        if ((profileData as any).id !== user.id) return
         setUser(profileData as any)
       }
     }
