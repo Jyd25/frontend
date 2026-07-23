@@ -15,39 +15,103 @@ async function exportToPDF(data: ExportData) {
   ])
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
+  const margin = 14
+
+  const addPageNumber = (pageNum: number) => {
+    doc.setFontSize(8)
+    doc.setTextColor(150)
+    doc.text(`Halaman ${pageNum}`, pageWidth - margin, pageHeight - 8, { align: 'right' })
+    doc.setTextColor(0)
+  }
+
+  let pageNum = 1
 
   doc.setFontSize(16)
-  doc.text(data.title, doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' })
-  doc.setFontSize(11)
-  doc.text('Periode: ' + data.period, doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' })
+  doc.setFont('helvetica', 'bold')
+  doc.text('LAPORAN KEHADIRAN', pageWidth / 2, 15, { align: 'center' })
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Cahaya Rancamaya Islamic Boarding School', pageWidth / 2, 21, { align: 'center' })
+  doc.text('Periode: ' + data.period, pageWidth / 2, 27, { align: 'center' })
 
-  let yOffset = 30
+  doc.setDrawColor(14, 165, 233)
+  doc.setLineWidth(0.3)
+  doc.line(margin, 30, pageWidth - margin, 30)
+
+  let yOffset = 35
 
   for (const emp of data.items) {
+    if (yOffset > pageHeight - 40) {
+      addPageNumber(pageNum)
+      doc.addPage()
+      pageNum++
+      yOffset = 15
+    }
+
+    doc.setFillColor(240, 249, 255)
+    doc.roundedRect(margin, yOffset - 2, pageWidth - 2 * margin, 10, 1, 1, 'F')
     doc.setFontSize(10)
     doc.setFont('helvetica', 'bold')
-    doc.text(`${emp.nik} - ${emp.name} (${emp.department} / ${emp.position})`, 14, yOffset)
-    yOffset += 2
+    doc.text(`${emp.nik} — ${emp.name}`, margin + 3, yOffset + 3.5)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.text(`Jabatan: ${emp.position}  |  Departemen: ${emp.department}`, margin + 3, yOffset + 7.5)
+    yOffset += 13
 
-    const rows = emp.records.map((r) => [r.date, r.check_in, r.check_out, r.status, r.location, r.face])
+    const hadir = emp.records.filter((r) => r.status === 'Hadir').length
+    const terlambat = emp.records.filter((r) => r.status === 'Terlambat').length
+    const alpha = emp.records.filter((r) => r.status === 'Alpha').length
+    const pulangCepat = emp.records.filter((r) => r.status_checkout === 'Pulang Cepat').length
+
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`Hadir: ${hadir}  |  Terlambat: ${terlambat}  |  Alpha: ${alpha}  |  Pulang Cepat: ${pulangCepat}`, margin + 3, yOffset + 4)
+    yOffset += 7
+
+    const rows = emp.records.map((r, i) => [
+      i + 1,
+      r.date,
+      r.check_in,
+      r.check_out,
+      r.status,
+      r.status_checkout || '-',
+      (r.checkin_address && r.checkin_address !== '-' ? r.checkin_address.substring(0, 40) : '-'),
+      (r.checkout_address && r.checkout_address !== '-' ? r.checkout_address.substring(0, 40) : '-'),
+      r.face,
+      r.remarks || '-',
+    ])
 
     ;(doc as any).autoTable({
       startY: yOffset,
-      head: [['Tanggal', 'Masuk', 'Pulang', 'Status', 'Lokasi', 'Face']],
+      head: [['No', 'Tanggal', 'Masuk', 'Pulang', 'Status', 'Status Pulang', 'Alamat Masuk', 'Alamat Pulang', 'Face', 'Keterangan']],
       body: rows,
       theme: 'grid',
-      headStyles: { fillColor: [14, 165, 233], textColor: 255, fontStyle: 'bold', fontSize: 9 },
-      bodyStyles: { fontSize: 9 },
-      margin: { left: 14, right: 14 },
+      headStyles: { fillColor: [14, 165, 233], textColor: 255, fontStyle: 'bold', fontSize: 7 },
+      bodyStyles: { fontSize: 7 },
+      columnStyles: {
+        0: { cellWidth: 8, halign: 'center' },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 16, halign: 'center' },
+        3: { cellWidth: 16, halign: 'center' },
+        4: { cellWidth: 18, halign: 'center' },
+        5: { cellWidth: 22, halign: 'center' },
+        6: { cellWidth: 42 },
+        7: { cellWidth: 42 },
+        8: { cellWidth: 14, halign: 'center' },
+        9: { cellWidth: 30 },
+      },
+      margin: { left: margin, right: margin },
+      didDrawPage: () => {
+        addPageNumber(pageNum)
+      },
     })
 
-    yOffset = (doc as any).lastAutoTable.finalY + 8
-
-    if (yOffset > doc.internal.pageSize.getHeight() - 20) {
-      doc.addPage()
-      yOffset = 15
-    }
+    yOffset = (doc as any).lastAutoTable.finalY + 10
   }
+
+  if (pageNum === 1) addPageNumber(1)
 
   doc.save(`laporan-kehadiran-${data.period.replace(/\s/g, '')}.pdf`)
 }
@@ -57,19 +121,20 @@ async function exportToExcel(data: ExportData) {
 
   const wb = XLSX.utils.book_new()
 
-  const rows: any[][] = [['NIK', 'Nama', 'Departemen', 'Jabatan', 'Tanggal', 'Jam Masuk', 'Jam Pulang', 'Status', 'Lokasi', 'Face']]
+  const rows: any[][] = [['No', 'NIK', 'Nama', 'Departemen', 'Jabatan', 'Tanggal', 'Jam Masuk', 'Jam Pulang', 'Status', 'Status Pulang', 'Alamat Masuk', 'Alamat Pulang', 'Face', 'Keterangan']]
+  let rowNum = 1
   for (const emp of data.items) {
     for (const r of emp.records) {
-      rows.push([emp.nik, emp.name, emp.department, emp.position, r.date, r.check_in, r.check_out, r.status, r.location, r.face])
+      rows.push([rowNum++, emp.nik, emp.name, emp.department, emp.position, r.date, r.check_in, r.check_out, r.status, r.status_checkout || '-', r.checkin_address || '-', r.checkout_address || '-', r.face, r.remarks || '-'])
     }
   }
 
   const ws = XLSX.utils.aoa_to_sheet(rows)
 
   ws['!cols'] = [
-    { wch: 15 }, { wch: 25 }, { wch: 20 }, { wch: 20 },
+    { wch: 5 }, { wch: 15 }, { wch: 25 }, { wch: 20 }, { wch: 20 },
     { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 },
-    { wch: 20 }, { wch: 8 },
+    { wch: 20 }, { wch: 35 }, { wch: 35 }, { wch: 8 }, { wch: 25 },
   ]
 
   XLSX.utils.book_append_sheet(wb, ws, 'Laporan Kehadiran')
@@ -176,6 +241,7 @@ export default function ExportPage() {
                     <th className="px-3 py-2 text-center text-[11px] uppercase tracking-wider text-gray-500 font-medium">Hadir</th>
                     <th className="px-3 py-2 text-center text-[11px] uppercase tracking-wider text-gray-500 font-medium">Terlambat</th>
                     <th className="px-3 py-2 text-center text-[11px] uppercase tracking-wider text-gray-500 font-medium">Alpha</th>
+                    <th className="px-3 py-2 text-center text-[11px] uppercase tracking-wider text-gray-500 font-medium">Pulang Cepat</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -193,6 +259,9 @@ export default function ExportPage() {
                       </td>
                       <td className="px-3 py-2 text-center">
                         <Badge variant="danger">{emp.records.filter((r) => r.status === 'Alpha').length}</Badge>
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <Badge variant="warning">{emp.records.filter((r) => r.status_checkout === 'Pulang Cepat').length}</Badge>
                       </td>
                     </tr>
                   ))}

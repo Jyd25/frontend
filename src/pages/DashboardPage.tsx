@@ -110,6 +110,16 @@ export default function DashboardPage() {
     }
   }
 
+  const checkoutBadge = (status?: string) => {
+    if (!status) return null
+    switch (status) {
+      case 'Pulang Tepat Waktu': return <Badge variant="success">Pulang Tepat Waktu</Badge>
+      case 'Pulang Cepat': return <Badge variant="warning">Pulang Cepat</Badge>
+      case 'Libur': return <Badge variant="info">Libur</Badge>
+      default: return <Badge>{status}</Badge>
+    }
+  }
+
   const formatTime = (t?: string) => {
     if (!t) return '-'
     return new Date(t).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
@@ -382,6 +392,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="text-right flex-shrink-0">
                       {statusBadge(att.status)}
+                      {checkoutBadge(att.status_checkout)}
                       {att.check_in_time && (
                         <p className="text-[10px] text-gray-400 mt-0.5">{formatTime(att.check_in_time)}</p>
                       )}
@@ -563,6 +574,11 @@ export default function DashboardPage() {
                       <p className="text-xl font-bold text-sky-700 tabular-nums mt-1">{formatTime(stats.my_attendance.check_out_time)}</p>
                     </div>
                   </div>
+                  {stats.my_attendance.status_checkout && (
+                    <div className="text-center">
+                      {checkoutBadge(stats.my_attendance.status_checkout)}
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-3">
                     {stats.my_attendance.location_status && (
                       <div className="flex items-center gap-2 p-2.5 rounded-lg bg-gray-50">

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Clock, MapPin, Camera, ChevronLeft, ChevronRight, AlertTriangle, Send, X, Pencil, Save } from 'lucide-react'
@@ -27,6 +27,16 @@ function getStatusBadge(status?: string) {
   }
 }
 
+function getCheckoutBadge(status?: string) {
+  if (!status) return null
+  switch (status) {
+    case 'Pulang Tepat Waktu': return <Badge variant="success">Pulang Tepat Waktu</Badge>
+    case 'Pulang Cepat': return <Badge variant="warning">Pulang Cepat</Badge>
+    case 'Libur': return <Badge variant="info">Libur</Badge>
+    default: return <Badge>{status}</Badge>
+  }
+}
+
 export default function AttendancePage() {
   const queryClient = useQueryClient()
   const user = useAuthStore((s) => s.user)
@@ -35,6 +45,12 @@ export default function AttendancePage() {
   const today = new Date()
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState(today.getFullYear())
+
+  const [realTime, setRealTime] = useState(new Date())
+  useEffect(() => {
+    const id = setInterval(() => setRealTime(new Date()), 1000)
+    return () => clearInterval(id)
+  }, [])
 
   const [showPresensiModal, setShowPresensiModal] = useState(false)
   const [showCorrectionModal, setShowCorrectionModal] = useState(false)
@@ -187,9 +203,22 @@ export default function AttendancePage() {
           <h1 className="text-3xl font-semibold tracking-tight text-gray-900">Kehadiran</h1>
           <p className="text-sm text-gray-500 mt-1">Data kehadiran bulanan</p>
         </div>
-        <Button onClick={() => setShowPresensiModal(true)}>
-          <Camera size={16} className="mr-2" /> Presensi Sekarang
-        </Button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 bg-white rounded-xl border border-gray-200/80 px-4 py-2.5 shadow-sm">
+            <Clock size={16} className="text-sky-500" />
+            <div className="text-right">
+              <p className="text-lg font-bold text-gray-900 font-mono tracking-wider">
+                {realTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </p>
+              <p className="text-[10px] text-gray-400 -mt-0.5">
+                {realTime.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              </p>
+            </div>
+          </div>
+          <Button onClick={() => setShowPresensiModal(true)}>
+            <Camera size={16} className="mr-2" /> Presensi Sekarang
+          </Button>
+        </div>
       </div>
 
       {/* Month Navigation */}
@@ -326,8 +355,10 @@ export default function AttendancePage() {
                   <th className="px-3 py-2.5 text-center text-[11px] uppercase tracking-wider text-gray-500 font-medium">Check Out</th>
                   <th className="px-3 py-2.5 text-left text-[11px] uppercase tracking-wider text-gray-500 font-medium">Jam Masuk</th>
                   <th className="px-3 py-2.5 text-left text-[11px] uppercase tracking-wider text-gray-500 font-medium">Jam Pulang</th>
-                  <th className="px-3 py-2.5 text-left text-[11px] uppercase tracking-wider text-gray-500 font-medium">Lokasi + Alamat</th>
+                  <th className="px-3 py-2.5 text-left text-[11px] uppercase tracking-wider text-gray-500 font-medium">Alamat Check In</th>
+                  <th className="px-3 py-2.5 text-left text-[11px] uppercase tracking-wider text-gray-500 font-medium">Alamat Check Out</th>
                   <th className="px-3 py-2.5 text-center text-[11px] uppercase tracking-wider text-gray-500 font-medium">Status</th>
+                  <th className="px-3 py-2.5 text-center text-[11px] uppercase tracking-wider text-gray-500 font-medium">Status Pulang</th>
                   {!isStaff && <th className="px-3 py-2.5 text-center text-[11px] uppercase tracking-wider text-gray-500 font-medium">Aksi</th>}
                 </tr>
               </thead>
@@ -438,19 +469,23 @@ export default function AttendancePage() {
                             ) : (
                               <span className="text-xs text-gray-300">-</span>
                             )}
-                            {item.location?.location_name && (
-                              <p className="text-[10px] text-gray-400 mt-0.5">{item.location.location_name}</p>
-                            )}
-                            {item.location_status && (
-                              <p className="text-[10px] text-gray-400">
-                                {item.location_status}
-                                {item.distance != null && ` (${Math.round(item.distance)}m)`}
-                              </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex items-start gap-1.5">
+                          <MapPin size={12} className="text-orange-400 mt-0.5 flex-shrink-0" />
+                          <div className="min-w-0">
+                            {item.checkout_address ? (
+                              <p className="text-xs text-gray-700 leading-relaxed">{item.checkout_address}</p>
+                            ) : (
+                              <span className="text-xs text-gray-300">-</span>
                             )}
                           </div>
                         </div>
                       </td>
                       <td className="px-3 py-3 text-center">{getStatusBadge(item.attendance_status)}</td>
+                      <td className="px-3 py-3 text-center">{getCheckoutBadge(item.status_checkout)}</td>
                       {!isStaff && (
                         <td className="px-3 py-3 text-center">
                           {isAdmin && (

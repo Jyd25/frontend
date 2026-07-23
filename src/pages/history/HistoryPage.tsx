@@ -26,6 +26,20 @@ function getStatusBadge(status?: string) {
   }
 }
 
+function getCheckoutBadge(status?: string) {
+  if (!status) return null
+  switch (status) {
+    case 'Pulang Tepat Waktu':
+      return <Badge variant="success">Pulang Tepat Waktu</Badge>
+    case 'Pulang Cepat':
+      return <Badge variant="warning">Pulang Cepat</Badge>
+    case 'Libur':
+      return <Badge variant="info">Libur</Badge>
+    default:
+      return <Badge>{status}</Badge>
+  }
+}
+
 function calcDuration(checkIn?: string, checkOut?: string) {
   if (!checkIn || !checkOut) return '-'
   const diff = new Date(checkOut).getTime() - new Date(checkIn).getTime()
@@ -107,6 +121,11 @@ export default function HistoryPage() {
       key: 'attendance_status',
       header: 'Status',
       render: (item: Attendance) => getStatusBadge(item.attendance_status),
+    },
+    {
+      key: 'status_checkout',
+      header: 'Status Pulang',
+      render: (item: Attendance) => getCheckoutBadge(item.status_checkout),
     },
     {
       key: 'location',

@@ -30,7 +30,7 @@ export default function ProfilePage() {
     staleTime: 30000,
   })
 
-  const employee = profileData?.employee
+  const employee = profileData?.employee || user?.employee
   const employeeId = employee?.id
 
   return (
@@ -85,6 +85,7 @@ function ProfileEditTab({ employee }: { employee: any }) {
   const queryClient = useQueryClient()
   const { user, setUser } = useAuthStore()
   const avatarInputRef = useRef<HTMLInputElement>(null)
+  const effectiveEmployee = employee || user?.employee
 
   const [form, setForm] = useState({
     name: user?.name || '',
@@ -169,29 +170,29 @@ function ProfileEditTab({ employee }: { employee: any }) {
             className="w-full px-3 py-2 border border-gray-200/80 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-colors" />
         </div>
 
-        {employee && (
+        {effectiveEmployee && (
           <div className="border-t border-gray-100 pt-4">
             <p className="text-[11px] uppercase tracking-wider font-medium text-gray-500 mb-3">Data Karyawan (Read Only)</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="bg-gray-50 rounded-lg p-3">
                 <p className="text-[10px] text-gray-400 uppercase">NIK</p>
-                <p className="text-sm font-medium text-gray-700">{employee.nik}</p>
+                <p className="text-sm font-medium text-gray-700">{effectiveEmployee.nik}</p>
               </div>
               <div className="bg-gray-50 rounded-lg p-3">
                 <p className="text-[10px] text-gray-400 uppercase">Departemen</p>
-                <p className="text-sm font-medium text-gray-700">{employee.department?.name || '-'}</p>
+                <p className="text-sm font-medium text-gray-700">{effectiveEmployee.department?.name || '-'}</p>
               </div>
               <div className="bg-gray-50 rounded-lg p-3">
                 <p className="text-[10px] text-gray-400 uppercase">Jabatan</p>
-                <p className="text-sm font-medium text-gray-700">{employee.position?.name || '-'}</p>
+                <p className="text-sm font-medium text-gray-700">{effectiveEmployee.position?.name || '-'}</p>
               </div>
               <div className="bg-gray-50 rounded-lg p-3">
                 <p className="text-[10px] text-gray-400 uppercase">Jadwal</p>
-                <p className="text-sm font-medium text-gray-700">{employee.schedule ? `${employee.schedule.start_time} - ${employee.schedule.end_time}` : '-'}</p>
+                <p className="text-sm font-medium text-gray-700">{effectiveEmployee.schedule ? `${effectiveEmployee.schedule.start_time} - ${effectiveEmployee.schedule.end_time}` : '-'}</p>
               </div>
               <div className="bg-gray-50 rounded-lg p-3">
                 <p className="text-[10px] text-gray-400 uppercase">Status</p>
-                <Badge variant={employee.is_active ? 'success' : 'danger'}>{employee.is_active ? 'Aktif' : 'Nonaktif'}</Badge>
+                <Badge variant={effectiveEmployee.is_active ? 'success' : 'danger'}>{effectiveEmployee.is_active ? 'Aktif' : 'Nonaktif'}</Badge>
               </div>
             </div>
           </div>

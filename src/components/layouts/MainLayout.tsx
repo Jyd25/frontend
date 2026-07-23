@@ -63,14 +63,17 @@ export default function MainLayout() {
 
   const prevProfileRef = useRef<string | null>(null)
   useEffect(() => {
-    if (profileData) {
+    if (profileData && user) {
       const serialized = JSON.stringify(profileData)
       if (serialized !== prevProfileRef.current) {
         prevProfileRef.current = serialized
-        setUser(profileData)
+        const currentEmployee = user.employee
+        const newEmployee = (profileData as any).employee
+        if (currentEmployee?.photo && !newEmployee?.photo) return
+        setUser(profileData as any)
       }
     }
-  }, [profileData, setUser])
+  }, [profileData, setUser, user])
 
   useEffect(() => {
     if (todayAttendance === null && !sessionStorage.getItem('absen_popup_shown')) {

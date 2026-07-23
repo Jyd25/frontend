@@ -118,7 +118,9 @@ export interface Attendance {
   photo_data?: string
   checkin_photo_data?: string
   checkout_photo_data?: string
+  status_checkout?: string
   address?: string
+  checkout_address?: string
   work_duration?: string
   created_at: string
 }

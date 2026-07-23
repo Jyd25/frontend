@@ -47,8 +47,12 @@ export interface ExportData {
       check_in: string
       check_out: string
       status: string
+      status_checkout?: string
+      checkin_address?: string
+      checkout_address?: string
       location: string
       face: string
+      remarks?: string
     }[]
   }[]
 }

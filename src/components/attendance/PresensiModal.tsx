@@ -103,7 +103,7 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
     loadModels().then((ok) => setModelsReady(ok))
   }, [])
 
-  const processGeo = useCallback(async (lat: number, lng: number) => {
+  const processGeo = useCallback(async (lat: number, lng: number, photoData?: string | null, faceRes?: { matched: boolean; score: number } | null) => {
     setStep('submitting')
     setIsProcessing(true)
     let locationId: number | null = null
@@ -141,9 +141,9 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
     }
 
     const facePayload = {
-      face_score: faceResult?.score,
-      face_status: faceResult?.matched ? 'matched' : 'unmatched',
-      photo_data: capturedFacePhoto || undefined,
+      face_score: faceRes?.score,
+      face_status: faceRes?.matched ? 'matched' : 'unmatched',
+      photo_data: photoData || undefined,
     }
 
     if (actionType === 'check_in') {
@@ -164,7 +164,7 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
       })
     }
     setIsProcessing(false)
-  }, [actionType, checkInMutation, checkOutMutation, faceResult, capturedFacePhoto])
+  }, [actionType, checkInMutation, checkOutMutation])
 
   const doCaptureAndVerify = useCallback(async () => {
     if (isProcessing) return
@@ -192,10 +192,12 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
     }
     setCapturedFacePhoto(imageDataUri)
 
+    let currentFaceResult: { matched: boolean; score: number } | null = null
     toast.info('Memverifikasi wajah...')
     try {
       const verifyResult = await faceService.verify(employeeId!, descriptorToArray(result.descriptor))
-      setFaceResult({ matched: verifyResult.matched, score: verifyResult.score })
+      currentFaceResult = { matched: verifyResult.matched, score: verifyResult.score }
+      setFaceResult(currentFaceResult)
 
       if ((verifyResult as any).no_face_data) {
         toast.warning('Data wajah belum terdaftar. Verifikasi dilewati.', { duration: 6000 })
@@ -206,14 +208,15 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
       }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Gagal memverifikasi wajah')
-      setFaceResult({ matched: false, score: 0 })
+      currentFaceResult = { matched: false, score: 0 }
+      setFaceResult(currentFaceResult)
     }
 
     toast.info('Mengambil lokasi...')
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         face.stopCamera()
-        await processGeo(pos.coords.latitude, pos.coords.longitude)
+        await processGeo(pos.coords.latitude, pos.coords.longitude, imageDataUri, currentFaceResult)
       },
       () => {
         toast.error('Gagal mendapatkan lokasi. GPS aktif?')

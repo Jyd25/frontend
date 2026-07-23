@@ -40,6 +40,20 @@ function getStatusBadge(status?: string) {
   }
 }
 
+function getCheckoutBadge(status?: string) {
+  if (!status) return null
+  switch (status) {
+    case 'Pulang Tepat Waktu':
+      return <Badge variant="success">Pulang Tepat Waktu</Badge>
+    case 'Pulang Cepat':
+      return <Badge variant="warning">Pulang Cepat</Badge>
+    case 'Libur':
+      return <Badge variant="info">Libur</Badge>
+    default:
+      return <Badge>{status}</Badge>
+  }
+}
+
 export default function AttendanceListPage() {
   const [page, setPage] = useState(1)
   const [dateFilter, setDateFilter] = useState('')
@@ -122,6 +136,11 @@ const columns = [
       render: (item: Attendance) => getStatusBadge(item.attendance_status),
     },
     {
+      key: 'status_checkout',
+      header: 'Status Pulang',
+      render: (item: Attendance) => getCheckoutBadge(item.status_checkout),
+    },
+    {
       key: 'location',
       header: 'Lokasi',
       render: (item: Attendance) => item.location?.location_name || '-',
@@ -138,6 +157,24 @@ const columns = [
           </div>
         )
       },
+    },
+    {
+      key: 'checkin_address',
+      header: 'Alamat Masuk',
+      render: (item: Attendance) => (
+        <span className="text-xs text-gray-600 max-w-[180px] truncate block" title={item.address || ''}>
+          {item.address || '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'checkout_address',
+      header: 'Alamat Pulang',
+      render: (item: Attendance) => (
+        <span className="text-xs text-gray-600 max-w-[180px] truncate block" title={item.checkout_address || ''}>
+          {item.checkout_address || '-'}
+        </span>
+      ),
     },
     {
       key: 'checkin_photo',

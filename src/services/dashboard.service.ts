@@ -17,6 +17,7 @@ interface MyAttendance {
   check_out_time?: string
   location_status?: string
   face_status?: string
+  status_checkout?: string
 }
 
 interface ScheduleInfo {
