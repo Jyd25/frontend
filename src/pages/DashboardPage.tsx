@@ -624,8 +624,8 @@ export default function DashboardPage() {
               <div className="space-y-3">
                 {[
                   { icon: Briefcase, label: 'Jam Kerja', value: stats?.schedule?.start_time && stats?.schedule?.end_time ? `${stats.schedule.start_time} — ${stats.schedule.end_time} WIB` : '07:00 — 16:00 WIB', color: 'bg-sky-50 text-sky-600' },
-                  { icon: Clock, label: 'Batas Check-In', value: stats?.schedule?.check_in_deadline ? `${stats.schedule.check_in_deadline} WIB` : '09:00 WIB', color: 'bg-amber-50 text-amber-600' },
-                  { icon: Clock, label: 'Batas Check-Out', value: stats?.schedule?.check_out_deadline ? `${stats.schedule.check_out_deadline} WIB` : '20:00 WIB', color: 'bg-amber-50 text-amber-600' },
+                  { icon: Clock, label: 'Batas Check-In', value: stats?.schedule?.presensi_start ? `${stats.schedule.presensi_start} WIB` : '07:00 WIB', color: 'bg-amber-50 text-amber-600' },
+                  { icon: Clock, label: 'Batas Check-Out', value: stats?.schedule?.presensi_deadline ? `${stats.schedule.presensi_deadline} WIB` : '16:00 WIB', color: 'bg-amber-50 text-amber-600' },
                   { icon: MapPin, label: 'Lokasi', value: 'Jl. Rancamaya No.30, Bogor', color: 'bg-teal-50 text-teal-600' },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50/80 hover:bg-gray-50 transition-colors">

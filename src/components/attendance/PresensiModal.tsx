@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { MapPin, Clock, CheckCircle2, LogOut, Camera, CameraOff, Fingerprint, Loader2, AlertTriangle, CircleDot, Navigation } from 'lucide-react'
 import { attendanceService } from '@/services/attendance.service'
+import { dashboardService } from '@/services/dashboard.service'
 import { faceService, geolocationService } from '@/services/face-geo.service'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { loadModels, useFaceRecognition, descriptorToArray } from '@/hooks/useFaceRecognition'
@@ -313,10 +314,22 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
   const isCheckedIn = todayAttendance && todayAttendance.check_in_time
   const isCheckedOut = todayAttendance && todayAttendance.check_out_time
 
-  const currentHour = now.getHours()
-  const currentMinute = now.getHours() * 60 + now.getMinutes()
-  const presensiStartMinute = 3 * 60
-  const presensiDeadlineMinute = 10 * 60
+  const { data: stats } = useQuery({
+    queryKey: ['dashboard-stats'],
+    queryFn: () => dashboardService.getStats(),
+    staleTime: 60_000,
+  })
+
+  const nowWib = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }))
+  const currentMinute = nowWib.getHours() * 60 + nowWib.getMinutes()
+
+  const presensiStartStr = stats?.schedule?.presensi_start || stats?.schedule?.start_time || '07:00'
+  const presensiDeadlineStr = stats?.schedule?.presensi_deadline || stats?.schedule?.end_time || '16:00'
+
+  const [startH, startM] = presensiStartStr.split(':').map(Number)
+  const [endH, endM] = presensiDeadlineStr.split(':').map(Number)
+  const presensiStartMinute = (startH || 7) * 60 + (startM || 0)
+  const presensiDeadlineMinute = (endH || 16) * 60 + (endM || 0)
 
   const isBeforePresensi = currentMinute < presensiStartMinute
   const isPastDeadline = currentMinute >= presensiDeadlineMinute
@@ -364,11 +377,11 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
             {showDone
               ? 'Anda sudah check-in dan check-out hari ini.'
               : isBeforePresensi
-                ? 'Belum waktu presensi. Waktu check-in dimulai pukul 03:00 WIB.'
+                ? 'Belum waktu presensi. Waktu check-in dimulai pukul ' + presensiStartStr + ' WIB.'
                 : showCheckOutNormal
                   ? 'Check-in sudah tercatat. Silakan lakukan check-out.'
                   : showCheckOutLate
-                    ? 'Lewat pukul 10:00. Silakan lakukan check-out.'
+                    ? 'Lewat pukul ' + presensiDeadlineStr + '. Silakan lakukan check-out.'
                     : 'Lakukan check-in untuk memulai hari kerja.'}
           </p>
           {showCheckOutNormal && todayAttendance && (
@@ -389,7 +402,7 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
             {isBeforePresensi && (
               <div className="flex items-center justify-center gap-2 text-sm text-sky-600 bg-sky-50 rounded-lg p-3">
                 <Clock size={14} />
-                <span>Waktu presensi dimulai pukul 03:00 WIB</span>
+                <span>Waktu presensi dimulai pukul {presensiStartStr} WIB</span>
               </div>
             )}
             {showCheckIn && modelsReady && (

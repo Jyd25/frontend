@@ -23,8 +23,8 @@ interface MyAttendance {
 interface ScheduleInfo {
   start_time?: string
   end_time?: string
-  check_in_deadline?: string
-  check_out_deadline?: string
+  presensi_start?: string
+  presensi_deadline?: string
 }
 
 interface DashboardStats {
