@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { MapPin, Clock, CheckCircle2, LogOut, Camera, CameraOff, Fingerprint, Loader2, AlertTriangle, CircleDot, Navigation } from 'lucide-react'
+import { formatTime } from '@/lib/utils'
 import { attendanceService } from '@/services/attendance.service'
 import { dashboardService } from '@/services/dashboard.service'
 import { faceService, geolocationService } from '@/services/face-geo.service'
@@ -12,11 +13,6 @@ import LocationMap from '@/components/ui/LocationMap'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
-
-function formatTime(iso?: string) {
-  if (!iso) return '-'
-  return new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-}
 
 type Step = 'idle' | 'face' | 'submitting' | 'done'
 

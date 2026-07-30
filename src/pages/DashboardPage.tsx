@@ -13,6 +13,7 @@ import {
 } from 'recharts'
 import { dashboardService } from '@/services/dashboard.service'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
+import { formatTime } from '@/lib/utils'
 import Badge from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
 
@@ -118,11 +119,6 @@ export default function DashboardPage() {
       case 'Libur': return <Badge variant="info">Libur</Badge>
       default: return <Badge>{status}</Badge>
     }
-  }
-
-  const formatTime = (t?: string) => {
-    if (!t) return '-'
-    return new Date(t).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
   }
 
   if (isLoading) {

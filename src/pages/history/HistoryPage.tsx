@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Calendar } from 'lucide-react'
 import { attendanceService } from '@/services/attendance.service'
+import { formatTime } from '@/lib/utils'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Card from '@/components/ui/Card'
@@ -101,7 +102,7 @@ export default function HistoryPage() {
       header: 'Jam Masuk',
       render: (item: Attendance) => {
         if (!item.check_in_time) return '-'
-        return new Date(item.check_in_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+        return formatTime(item.check_in_time)
       },
     },
     {
@@ -109,7 +110,7 @@ export default function HistoryPage() {
       header: 'Jam Pulang',
       render: (item: Attendance) => {
         if (!item.check_out_time) return '-'
-        return new Date(item.check_out_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+        return formatTime(item.check_out_time)
       },
     },
     {

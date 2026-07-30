@@ -10,6 +10,7 @@ import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
+import { formatTime } from '@/lib/utils'
 import FaceThumbnail from '@/components/ui/FaceThumbnail'
 import type { Attendance } from '@/types/api'
 
@@ -134,10 +135,7 @@ export default function AttendancePage() {
   for (let i = 0; i < firstDayOfWeek; i++) calendarDays.push(null)
   for (let d = 1; d <= daysInMonth; d++) calendarDays.push(d)
 
-  function formatTimeShort(iso?: string) {
-    if (!iso) return '-'
-    return new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-  }
+
 
   function formatDateKey(day: number) {
     return `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
@@ -291,7 +289,7 @@ export default function AttendancePage() {
                       <div className="flex items-center gap-1">
                         <Clock size={9} className="text-sky-500 flex-shrink-0" />
                         <span className={`text-[10px] ${attendance.check_in_time ? 'text-gray-700 font-medium' : 'text-amber-500'}`}>
-                          {attendance.check_in_time ? formatTimeShort(attendance.check_in_time) : '—'}
+                          {attendance.check_in_time ? formatTime(attendance.check_in_time) : '—'}
                         </span>
                         {!attendance.check_in_time && isStaff && isPast(day) && (
                           <button onClick={() => openCorrection(day, 'check_in')} className="text-[9px] text-sky-500 hover:text-sky-700 font-medium flex items-center gap-0.5 ml-auto" title="Ajukan perbaikan">
@@ -302,7 +300,7 @@ export default function AttendancePage() {
                       <div className="flex items-center gap-1">
                         <Clock size={9} className="text-orange-500 flex-shrink-0" />
                         <span className={`text-[10px] ${attendance.check_out_time ? 'text-gray-700 font-medium' : 'text-amber-500'}`}>
-                          {attendance.check_out_time ? formatTimeShort(attendance.check_out_time) : '—'}
+                          {attendance.check_out_time ? formatTime(attendance.check_out_time) : '—'}
                         </span>
                         {!attendance.check_out_time && isStaff && isPast(day) && (
                           <button onClick={() => openCorrection(day, 'check_out')} className="text-[9px] text-sky-500 hover:text-sky-700 font-medium flex items-center gap-0.5 ml-auto" title="Ajukan perbaikan">
@@ -418,7 +416,7 @@ export default function AttendancePage() {
                       </td>
                       <td className="px-3 py-3">
                         {item.check_in_time ? (
-                          <span className="text-sm font-medium text-gray-700">{formatTimeShort(item.check_in_time)}</span>
+                          <span className="text-sm font-medium text-gray-700">{formatTime(item.check_in_time)}</span>
                         ) : (
                           <div className="flex items-center gap-1">
                             <span className="text-sm text-amber-500">—</span>
@@ -439,7 +437,7 @@ export default function AttendancePage() {
                       </td>
                       <td className="px-3 py-3">
                         {item.check_out_time ? (
-                          <span className="text-sm font-medium text-gray-700">{formatTimeShort(item.check_out_time)}</span>
+                          <span className="text-sm font-medium text-gray-700">{formatTime(item.check_out_time)}</span>
                         ) : (
                           <div className="flex items-center gap-1">
                             <span className="text-sm text-amber-500">—</span>

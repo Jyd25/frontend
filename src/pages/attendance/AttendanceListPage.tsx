@@ -4,6 +4,7 @@ import { Search, Calendar, MapPin } from 'lucide-react'
 import { attendanceService } from '@/services/attendance.service'
 import { departmentService } from '@/services/department.service'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { formatTime } from '@/lib/utils'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Card from '@/components/ui/Card'
@@ -119,7 +120,7 @@ const columns = [
       header: 'Jam Masuk',
       render: (item: Attendance) => {
         if (!item.check_in_time) return '-'
-        return new Date(item.check_in_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+        return formatTime(item.check_in_time)
       },
     },
     {
@@ -127,7 +128,7 @@ const columns = [
       header: 'Jam Pulang',
       render: (item: Attendance) => {
         if (!item.check_out_time) return '-'
-        return new Date(item.check_out_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+        return formatTime(item.check_out_time)
       },
     },
     {
