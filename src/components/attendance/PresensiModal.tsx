@@ -33,16 +33,23 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
   const [step, setStep] = useState<Step>('idle')
   const [modelsReady, setModelsReady] = useState(false)
   const [faceResult, setFaceResult] = useState<{ matched: boolean; score: number } | null>(null)
-  const [geoResult, setGeoResult] = useState<{ inside: boolean; distance: number | null; locationName: string | null; locationId: number | null; latitude: number | null; longitude: number | null; address: string | null; locationLat: number | null; locationLng: number | null; radius: number | null } | null>(null)
+  const [geoResult, setGeoResult] = useState<{
+    inside: boolean; distance: number | null; locationName: string | null;
+    locationId: number | null; latitude: number | null; longitude: number | null;
+    address: string | null; locationLat: number | null; locationLng: number | null;
+    radius: number | null; userLat: number | null; userLng: number | null
+  } | null>(null)
   const [actionType, setActionType] = useState<'check_in' | 'check_out'>('check_in')
   const [now, setNow] = useState(new Date())
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [countdown, setCountdown] = useState<number | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [capturedFacePhoto, setCapturedFacePhoto] = useState<string | null>(null)
+  const [geoLoading, setGeoLoading] = useState(false)
 
   const faceDetectedSinceRef = useRef<number | null>(null)
   const autoCaptureTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const gpsCoordsRef = useRef<{lat: number; lng: number} | null>(null)
 
   const face = useFaceRecognition()
 
@@ -129,12 +136,14 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
         locationLat: locLat,
         locationLng: locLng,
         radius: locRadius,
+        userLat: lat,
+        userLng: lng,
       })
     } catch {
       try {
         address = await reverseGeocode(lat, lng)
       } catch {}
-      setGeoResult({ inside: false, distance: null, locationName: null, locationId: null, latitude: null, longitude: null, address, locationLat: null, locationLng: null, radius: null })
+      setGeoResult({ inside: false, distance: null, locationName: null, locationId: null, latitude: null, longitude: null, address, locationLat: null, locationLng: null, radius: null, userLat: lat, userLng: lng })
     }
 
     const facePayload = {
@@ -209,20 +218,23 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
       setFaceResult(currentFaceResult)
     }
 
-    toast.info('Mengambil lokasi...')
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        face.stopCamera()
-        await processGeo(pos.coords.latitude, pos.coords.longitude, imageDataUri, currentFaceResult)
-      },
-      () => {
-        toast.error('Gagal mendapatkan lokasi. GPS aktif?')
-        face.stopCamera()
-        setStep('idle')
-        setIsProcessing(false)
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    )
+    toast.info('Mengirim data presensi...')
+    face.stopCamera()
+    if (gpsCoordsRef.current) {
+      await processGeo(gpsCoordsRef.current.lat, gpsCoordsRef.current.lng, imageDataUri, currentFaceResult)
+    } else {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          await processGeo(pos.coords.latitude, pos.coords.longitude, imageDataUri, currentFaceResult)
+        },
+        () => {
+          toast.error('Gagal mendapatkan lokasi. GPS aktif?')
+          setStep('idle')
+          setIsProcessing(false)
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      )
+    }
   }, [employeeId, face, processGeo, isProcessing])
 
   async function startAttendance(type: 'check_in' | 'check_out') {
@@ -237,7 +249,23 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
     setCountdown(null)
     setCapturedFacePhoto(null)
     faceDetectedSinceRef.current = null
+    gpsCoordsRef.current = null
     setStep('face')
+
+    setGeoLoading(true)
+    toast.info('Mendapatkan lokasi GPS...')
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 15000 })
+      })
+      gpsCoordsRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+    } catch (err: any) {
+      if (err.code === 1) {
+        toast.error('Izin lokasi ditolak. Izinkan lokasi di browser untuk presensi.', { duration: 5000 })
+      }
+      gpsCoordsRef.current = null
+    }
+    setGeoLoading(false)
 
     const ok = await face.startCamera()
     if (!ok) {
@@ -444,6 +472,11 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
       {/* FACE CAMERA */}
       {step === 'face' && (
         <div className="text-center space-y-4">
+          {geoLoading && (
+            <div className="flex items-center justify-center gap-2 text-xs text-sky-600 bg-sky-50 rounded-lg px-3 py-2">
+              <Loader2 size={12} className="animate-spin" /> Mendapatkan lokasi GPS...
+            </div>
+          )}
           <p className="text-sm text-gray-500">
             {isProcessing ? 'Memproses verifikasi...' : countdown !== null ? 'Wajah terdeteksi! Tunggu sebentar...' : `Arahkan wajah ke kamera${actionType === 'check_out' ? ' (Check Out)' : ''}`}
           </p>
@@ -526,14 +559,20 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
           )}
           <div className="flex justify-center gap-2 flex-wrap">
             {geoResult?.inside && <Badge variant="success"><MapPin size={12} className="mr-1" />{geoResult.locationName}</Badge>}
-            {geoResult && !geoResult.inside && (
+            {geoResult && !geoResult.inside && geoResult.locationName && (
               <Badge variant="warning">
                 <MapPin size={12} className="mr-1" /> Luar Radius
-                <span className="block text-[10px] mt-1 text-gray-600">{geoResult.locationName || 'Lokasi'} ({geoResult.distance !== null ? `${geoResult.distance}m` : ''})</span>
+                <span className="block text-[10px] mt-1 text-gray-600">{geoResult.locationName} ({geoResult.distance !== null ? `${geoResult.distance}m` : '-'})</span>
+              </Badge>
+            )}
+            {geoResult && !geoResult.inside && !geoResult.locationName && (
+              <Badge variant="warning">
+                <MapPin size={12} className="mr-1" /> Luar Radius
+                <span className="block text-[10px] mt-1 text-gray-600">Tidak terdeteksi lokasi tujuan</span>
               </Badge>
             )}
           </div>
-          {geoResult?.latitude && geoResult?.longitude && (
+          {(geoResult?.userLat && geoResult?.userLng) ? (
             <div className="max-w-md mx-auto">
               {geoResult.address && (
                 <div className="flex items-start gap-2 text-left bg-gray-50 rounded-lg p-3 mb-3">
@@ -541,16 +580,27 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
                   <p className="text-xs text-gray-600 leading-relaxed">{geoResult.address}</p>
                 </div>
               )}
-              {geoResult.locationLat && geoResult.locationLng && geoResult.radius && (
+              {geoResult.locationLat && geoResult.locationLng && geoResult.radius ? (
                 <LocationMap
-                  userLat={geoResult.latitude}
-                  userLng={geoResult.longitude}
+                  userLat={geoResult.userLat}
+                  userLng={geoResult.userLng}
                   centerLat={geoResult.locationLat}
                   centerLng={geoResult.locationLng}
                   radius={geoResult.radius}
                   locationName={geoResult.locationName || 'Lokasi'}
                 />
+              ) : (
+                <div className="rounded-lg overflow-hidden border border-gray-200 bg-gray-50 p-4 text-center text-sm text-gray-500">
+                  <MapPin size={20} className="mx-auto mb-1 text-gray-400" />
+                  <p>Lokasi Anda tercatat</p>
+                  <p className="text-xs text-gray-400 mt-1">{geoResult.userLat.toFixed(6)}, {geoResult.userLng.toFixed(6)}</p>
+                </div>
               )}
+            </div>
+          ) : (
+            <div className="max-w-md mx-auto rounded-lg border border-gray-200 bg-gray-50 p-4 text-center text-sm text-gray-500">
+              <MapPin size={20} className="mx-auto mb-1 text-gray-400" />
+              <p>Data lokasi tidak tersedia</p>
             </div>
           )}
           <Button variant="outline" onClick={() => { setStep('idle'); onClose() }} className="w-full">
