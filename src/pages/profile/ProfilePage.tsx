@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { User, Mail, Phone, MapPin, Calendar, Lock, Eye, EyeOff, Save, Camera, Upload, CheckCircle2, XCircle, ScanFace, Trash2, Image } from 'lucide-react'
+import { formatTime, formatDateFull } from '@/lib/utils'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { authService } from '@/services/auth.service'
 import { faceService, type FaceDataset } from '@/services/face-geo.service'
@@ -188,7 +189,7 @@ function ProfileEditTab({ employee }: { employee: any }) {
               </div>
               <div className="bg-gray-50 rounded-lg p-3">
                 <p className="text-[10px] text-gray-400 uppercase">Jadwal</p>
-                <p className="text-sm font-medium text-gray-700">{effectiveEmployee.schedule ? `${effectiveEmployee.schedule.start_time} - ${effectiveEmployee.schedule.end_time}` : '-'}</p>
+                <p className="text-sm font-medium text-gray-700">{effectiveEmployee.schedule ? `${formatTime(effectiveEmployee.schedule.start_time)} - ${formatTime(effectiveEmployee.schedule.end_time)}` : '-'}</p>
               </div>
               <div className="bg-gray-50 rounded-lg p-3">
                 <p className="text-[10px] text-gray-400 uppercase">Status</p>
@@ -606,7 +607,7 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
                         <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-green-500 text-white">Utama</span>
                       )}
                       <span className="text-[10px] text-white/80">
-                        {new Date(faceData.created_at).toLocaleDateString('id-ID')}
+                        {formatDateFull(faceData.created_at)}
                       </span>
                     </div>
                     <button

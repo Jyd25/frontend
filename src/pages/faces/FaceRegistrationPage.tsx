@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Camera, Upload, Trash2, CheckCircle2, XCircle, ScanFace, User } from 'lucide-react'
+import { formatDateFull } from '@/lib/utils'
 import { faceService, type FaceDataset } from '@/services/face-geo.service'
 import { employeeService } from '@/services/employee.service'
 import { loadModels, useFaceRecognition, descriptorToArray } from '@/hooks/useFaceRecognition'
@@ -292,7 +293,7 @@ export default function FaceRegistrationPage() {
                               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">Utama</span>
                             )}
                             <span className="text-xs text-gray-500">
-                              {new Date(faceData.created_at).toLocaleDateString('id-ID')}
+                              {formatDateFull(faceData.created_at)}
                             </span>
                           </div>
                         </div>

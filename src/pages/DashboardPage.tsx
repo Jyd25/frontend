@@ -619,11 +619,11 @@ export default function DashboardPage() {
             <CardContent>
               <div className="space-y-3">
                 {[
-                  { icon: Briefcase, label: 'Jam Kerja', value: stats?.schedule?.start_time && stats?.schedule?.end_time ? `${stats.schedule.start_time} — ${stats.schedule.end_time} WIB` : '-', color: 'bg-sky-50 text-sky-600' },
-                  { icon: Clock, label: 'Batas Check-In', value: stats?.schedule?.presensi_start ? `${stats.schedule.presensi_start} WIB` : '-', color: 'bg-amber-50 text-amber-600' },
-                  { icon: Clock, label: 'Deadline Check-In', value: stats?.schedule?.presensi_deadline ? `${stats.schedule.presensi_deadline} WIB` : '-', color: 'bg-orange-50 text-orange-600' },
+                  { icon: Briefcase, label: 'Jam Kerja', value: stats?.schedule?.start_time && stats?.schedule?.end_time ? `${formatTime(stats.schedule.start_time)} — ${formatTime(stats.schedule.end_time)} WIB` : '-', color: 'bg-sky-50 text-sky-600' },
+                  { icon: Clock, label: 'Batas Check-In', value: stats?.schedule?.presensi_start ? `${formatTime(stats.schedule.presensi_start)} WIB` : '-', color: 'bg-amber-50 text-amber-600' },
+                  { icon: Clock, label: 'Deadline Check-In', value: stats?.schedule?.presensi_deadline ? `${formatTime(stats.schedule.presensi_deadline)} WIB` : '-', color: 'bg-orange-50 text-orange-600' },
                   ...(stats?.schedule?.break_start && stats?.schedule?.break_end ? [
-                    { icon: Clock, label: 'Jam Istirahat', value: `${stats.schedule.break_start} — ${stats.schedule.break_end} WIB`, color: 'bg-purple-50 text-purple-600' },
+                    { icon: Clock, label: 'Jam Istirahat', value: `${formatTime(stats.schedule.break_start)} — ${formatTime(stats.schedule.break_end)} WIB`, color: 'bg-purple-50 text-purple-600' },
                   ] : []),
                   ...(stats?.schedule?.tolerance_minutes ? [
                     { icon: AlertTriangle, label: 'Toleransi Keterlambatan', value: `${stats.schedule.tolerance_minutes} menit`, color: 'bg-rose-50 text-rose-600' },

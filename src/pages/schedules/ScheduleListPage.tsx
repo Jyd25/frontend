@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Plus, Search, Pencil, Trash2 } from 'lucide-react'
+import { formatTime } from '@/lib/utils'
 import { scheduleService } from '@/services/schedule.service'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -131,8 +132,8 @@ export default function ScheduleListPage() {
 
   const columns = [
     { key: 'name', header: 'Nama' },
-    { key: 'start_time', header: 'Jam Mulai' },
-    { key: 'end_time', header: 'Jam Selesai' },
+    { key: 'start_time', header: 'Jam Mulai', render: (item: WorkSchedule) => formatTime(item.start_time) },
+    { key: 'end_time', header: 'Jam Selesai', render: (item: WorkSchedule) => formatTime(item.end_time) },
     {
       key: 'working_days',
       header: 'Hari Kerja',

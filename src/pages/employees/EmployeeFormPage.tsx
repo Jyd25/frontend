@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ArrowLeft, Camera, Upload, Trash2, CheckCircle2, XCircle, ScanFace } from 'lucide-react'
+import { formatDateFull } from '@/lib/utils'
 import { employeeService } from '@/services/employee.service'
 import { faceService, type FaceDataset } from '@/services/face-geo.service'
 import { departmentService } from '@/services/department.service'
@@ -613,7 +614,7 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">Utama</span>
                     )}
                     <span className="text-xs text-gray-500">
-                      {new Date(faceData.created_at).toLocaleDateString('id-ID')}
+                      {formatDateFull(faceData.created_at)}
                     </span>
                   </div>
                 </div>

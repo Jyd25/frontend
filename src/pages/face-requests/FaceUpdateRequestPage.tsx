@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { CheckCircle, XCircle, Camera, Upload, Trash2 } from 'lucide-react'
+import { formatDateFull } from '@/lib/utils'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { faceUpdateRequestService, type FaceUpdateRequest } from '@/services/face-geo.service'
 import { useFaceRecognition } from '@/hooks/useFaceRecognition'
@@ -83,7 +84,7 @@ export default function FaceUpdateRequestPage() {
                       {isAdmin && <span className="text-sm text-gray-500">{r.employee?.name}</span>}
                       {r.employee?.nik && <span className="text-xs text-gray-400">({r.employee.nik})</span>}
                     </div>
-                    <p className="text-xs text-gray-400">Diajukan: {new Date(r.created_at).toLocaleString('id-ID')}</p>
+                    <p className="text-xs text-gray-400">Diajukan: {formatDateFull(r.created_at)}</p>
                     {r.admin_note && <p className="text-xs text-gray-500 mt-1">Catatan admin: {r.admin_note}</p>}
                   </div>
                   {isAdmin && r.status === 'pending' && (

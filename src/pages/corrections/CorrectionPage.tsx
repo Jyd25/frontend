@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Plus, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
 import { correctionService, type AttendanceCorrection } from '@/services/leave-correction.service'
+import { formatTime } from '@/lib/utils'
 import { useAuthStore } from '@/stores/useAuthStore'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -99,9 +100,9 @@ export default function CorrectionPage() {
                     </div>
                     <p className="text-[15px] font-semibold text-gray-900">Tanggal: {c.date}</p>
                     <p className="text-sm text-gray-600">
-                      {c.check_in_time && `Masuk: ${c.check_in_time}`}
+                      {c.check_in_time && `Masuk: ${formatTime(c.check_in_time)}`}
                       {c.check_in_time && c.check_out_time && ' | '}
-                      {c.check_out_time && `Pulang: ${c.check_out_time}`}
+                      {c.check_out_time && `Pulang: ${formatTime(c.check_out_time)}`}
                     </p>
                     <p className="text-sm text-gray-600 mt-1">{c.reason}</p>
                     {c.admin_note && <p className="text-[11px] uppercase tracking-wider text-gray-500 mt-1">Catatan admin: {c.admin_note}</p>}
