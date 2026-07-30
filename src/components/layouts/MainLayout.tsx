@@ -35,13 +35,20 @@ const sidebarItems: SidebarItem[] = [
 ]
 
 export default function MainLayout() {
-  const { user, isAuthenticated, setUser } = useAuthStore()
-  const logout = useLogout()
+  const { user, isAuthenticated, setUser, logout: clearAuth } = useAuthStore()
+  const logoutMutation = useLogout()
   const location = useLocation()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showAbsenPopup, setShowAbsenPopup] = useState(false)
-  const { data: profileData } = useProfile()
+  const { data: profileData, isError: profileError } = useProfile()
+
+  useEffect(() => {
+    if (profileError) {
+      clearAuth()
+      navigate('/login', { replace: true })
+    }
+  }, [profileError, clearAuth, navigate])
 
   const isStaff = ['Guru', 'Karyawan'].includes(user?.role?.name ?? '')
 
@@ -92,7 +99,7 @@ export default function MainLayout() {
   const filteredItems = sidebarItems.filter((item) => item.roles.includes(user.role?.name))
 
   const handleLogout = () => {
-    logout.mutate()
+    logoutMutation.mutate()
   }
 
   return (

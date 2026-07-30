@@ -36,7 +36,7 @@ export function useLogout() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: authService.logout,
-    onSettled: () => {
+    onMutate: () => {
       queryClient.clear()
       logout()
       navigate('/login', { replace: true })

@@ -34,7 +34,8 @@ function Loading() {
 
 function RootRedirect() {
   const { user, isAuthenticated } = useAuthStore()
-  if (!isAuthenticated || !user) return <Navigate to="/login" replace />
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  if (!user) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-2 border-sky-200 border-t-teal-600 rounded-full" /></div>
   const defaultRoute = ['Administrator', 'Pimpinan'].includes(user.role?.name ?? '') ? '/dashboard' : '/attendance'
   return <Navigate to={defaultRoute} replace />
 }
