@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Plus, CheckCircle, XCircle, Clock, Trash2 } from 'lucide-react'
 import { leaveService, type LeaveRequest } from '@/services/leave-correction.service'
+import { formatDate } from '@/lib/utils'
 import { useAuthStore } from '@/stores/useAuthStore'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -23,6 +24,8 @@ export default function LeavePage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ type: 'permission', start_date: '', end_date: '', reason: '' })
+  const [approveModal, setApproveModal] = useState<{ open: boolean; id: number | null; item: LeaveRequest | null }>({ open: false, id: null, item: null })
+  const [approveNote, setApproveNote] = useState('')
   const [rejectModal, setRejectModal] = useState<{ open: boolean; id: number | null }>({ open: false, id: null })
   const [rejectNote, setRejectNote] = useState('')
 
@@ -48,6 +51,8 @@ export default function LeavePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leaves'] })
       toast.success('Izin disetujui')
+      setApproveModal({ open: false, id: null, item: null })
+      setApproveNote('')
     },
     onError: (e: any) => toast.error(e.response?.data?.message || 'Gagal'),
   })
@@ -106,14 +111,14 @@ export default function LeavePage() {
                       <Badge variant={STATUS_VARIANT[l.status]}>{STATUS_LABEL[l.status]}</Badge>
                       {isAdmin && <span className="text-sm text-gray-500">{l.employee?.name}</span>}
                     </div>
-                    <p className="text-[15px] font-semibold text-gray-900">{l.start_date} s/d {l.end_date}</p>
+                    <p className="text-[15px] font-semibold text-gray-900">{formatDate(l.start_date)} s/d {formatDate(l.end_date)}</p>
                     <p className="text-sm text-gray-600 mt-1">{l.reason}</p>
                     {l.admin_note && <p className="text-[11px] uppercase tracking-wider text-gray-500 mt-1">Catatan admin: {l.admin_note}</p>}
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {isAdmin && l.status === 'pending' && (
                       <>
-                        <Button size="sm" onClick={() => approveMutation.mutate({ id: l.id })} loading={approveMutation.isPending}>
+                        <Button size="sm" onClick={() => setApproveModal({ open: true, id: l.id, item: l })}>
                           <CheckCircle size={14} className="mr-1" /> Setuju
                         </Button>
                         <Button size="sm" variant="danger" onClick={() => setRejectModal({ open: true, id: l.id })}>
@@ -170,6 +175,47 @@ export default function LeavePage() {
             <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>
             <Button loading={createMutation.isPending} onClick={() => createMutation.mutate(form)}>Kirim</Button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Approve Modal */}
+      <Modal open={approveModal.open} onClose={() => setApproveModal({ open: false, id: null, item: null })} title="Setujui Izin">
+        <div className="space-y-4">
+          {approveModal.item && (
+            <>
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Karyawan</span>
+                  <span className="font-medium text-gray-900">{approveModal.item.employee?.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Jenis</span>
+                  <Badge variant={TYPE_VARIANT[approveModal.item.type]}>{TYPE_LABEL[approveModal.item.type]}</Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Tanggal</span>
+                  <span className="font-medium text-gray-900">{formatDate(approveModal.item.start_date)} s/d {formatDate(approveModal.item.end_date)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Alasan</span>
+                  <span className="font-medium text-gray-900 text-right max-w-[60%]">{approveModal.item.reason}</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] uppercase tracking-wider font-medium text-gray-500">Catatan Admin (opsional)</label>
+                <textarea value={approveNote} onChange={(e) => setApproveNote(e.target.value)} rows={3}
+                  placeholder="Tambahkan catatan persetujuan..."
+                  className="w-full px-3 py-2 border border-gray-200/80 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-colors" />
+              </div>
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" onClick={() => { setApproveModal({ open: false, id: null, item: null }); setApproveNote('') }}>Batal</Button>
+                <Button loading={approveMutation.isPending}
+                  onClick={() => approveMutation.mutate({ id: approveModal.id!, note: approveNote || undefined })}>
+                  Setujui
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </Modal>
 

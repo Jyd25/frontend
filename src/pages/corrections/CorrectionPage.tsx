@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Plus, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
 import { correctionService, type AttendanceCorrection } from '@/services/leave-correction.service'
-import { formatTime } from '@/lib/utils'
+import { formatTime, formatDate } from '@/lib/utils'
 import { useAuthStore } from '@/stores/useAuthStore'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -24,6 +24,8 @@ export default function CorrectionPage() {
   const [form, setForm] = useState({ date: '', check_in_time: '', check_out_time: '', reason: '' })
   const [rejectModal, setRejectModal] = useState<{ open: boolean; id: number | null }>({ open: false, id: null })
   const [rejectNote, setRejectNote] = useState('')
+  const [approveModal, setApproveModal] = useState<{ open: boolean; id: number | null; item: AttendanceCorrection | null }>({ open: false, id: null, item: null })
+  const [approveData, setApproveData] = useState({ note: '', check_in_time: '', check_out_time: '' })
 
   const { data, isLoading } = useQuery({
     queryKey: ['corrections', page, statusFilter],
@@ -43,10 +45,13 @@ export default function CorrectionPage() {
   })
 
   const approveMutation = useMutation({
-    mutationFn: ({ id, note }: { id: number; note?: string }) => correctionService.approve(id, note),
+    mutationFn: ({ id, note, check_in_time, check_out_time }: { id: number; note?: string; check_in_time?: string; check_out_time?: string }) =>
+      correctionService.approve(id, { admin_note: note, check_in_time: check_in_time || undefined, check_out_time: check_out_time || undefined }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['corrections'] })
       toast.success('Perbaikan disetujui')
+      setApproveModal({ open: false, id: null, item: null })
+      setApproveData({ note: '', check_in_time: '', check_out_time: '' })
     },
   })
 
@@ -98,7 +103,7 @@ export default function CorrectionPage() {
                       <Badge variant={STATUS_VARIANT[c.status]}>{STATUS_LABEL[c.status]}</Badge>
                       {isAdmin && <span className="text-sm text-gray-500">{c.employee?.name}</span>}
                     </div>
-                    <p className="text-[15px] font-semibold text-gray-900">Tanggal: {c.date}</p>
+                    <p className="text-[15px] font-semibold text-gray-900">Tanggal: {formatDate(c.date)}</p>
                     <p className="text-sm text-gray-600">
                       {c.check_in_time && `Masuk: ${formatTime(c.check_in_time)}`}
                       {c.check_in_time && c.check_out_time && ' | '}
@@ -109,7 +114,7 @@ export default function CorrectionPage() {
                   </div>
                   {isAdmin && c.status === 'pending' && (
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <Button size="sm" onClick={() => approveMutation.mutate({ id: c.id })} loading={approveMutation.isPending}>
+                      <Button size="sm" onClick={() => { setApproveModal({ open: true, id: c.id, item: c }); setApproveData({ note: '', check_in_time: c.check_in_time || '', check_out_time: c.check_out_time || '' }) }}>
                         <CheckCircle size={14} className="mr-1" /> Setuju
                       </Button>
                       <Button size="sm" variant="danger" onClick={() => setRejectModal({ open: true, id: c.id })}>
@@ -154,6 +159,54 @@ export default function CorrectionPage() {
             <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>
             <Button loading={createMutation.isPending} onClick={() => createMutation.mutate(form)}>Kirim</Button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Approve Modal */}
+      <Modal open={approveModal.open} onClose={() => setApproveModal({ open: false, id: null, item: null })} title="Setujui Perbaikan Kehadiran">
+        <div className="space-y-4">
+          {approveModal.item && (
+            <>
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Karyawan</span>
+                  <span className="font-medium text-gray-900">{approveModal.item.employee?.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Tanggal</span>
+                  <span className="font-medium text-gray-900">{formatDate(approveModal.item.date)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Alasan</span>
+                  <span className="font-medium text-gray-900 text-right max-w-[60%]">{approveModal.item.reason}</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="Jam Masuk" type="time" value={approveData.check_in_time}
+                  onChange={(e) => setApproveData({ ...approveData, check_in_time: e.target.value })} />
+                <Input label="Jam Pulang" type="time" value={approveData.check_out_time}
+                  onChange={(e) => setApproveData({ ...approveData, check_out_time: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] uppercase tracking-wider font-medium text-gray-500">Catatan Admin (opsional)</label>
+                <textarea value={approveData.note} onChange={(e) => setApproveData({ ...approveData, note: e.target.value })}
+                  rows={2} placeholder="Tambahkan catatan persetujuan..."
+                  className="w-full px-3 py-2 border border-gray-200/80 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-colors" />
+              </div>
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" onClick={() => { setApproveModal({ open: false, id: null, item: null }); setApproveData({ note: '', check_in_time: '', check_out_time: '' }) }}>Batal</Button>
+                <Button loading={approveMutation.isPending}
+                  onClick={() => approveMutation.mutate({
+                    id: approveModal.id!,
+                    note: approveData.note || undefined,
+                    check_in_time: approveData.check_in_time || undefined,
+                    check_out_time: approveData.check_out_time || undefined,
+                  })}>
+                  Setujui
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </Modal>
 

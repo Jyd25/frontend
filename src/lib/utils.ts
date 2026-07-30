@@ -20,6 +20,19 @@ export function formatTime(t?: string | null): string {
   }
 }
 
+export function formatDate(iso?: string | null): string {
+  if (!iso) return '-'
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso
+  const cleaned = iso.replace(/\.\d+Z$/, 'Z').replace(/\.\d+/, '')
+  try {
+    const d = new Date(cleaned)
+    if (isNaN(d.getTime())) return iso
+    return d.toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit' })
+  } catch {
+    return iso
+  }
+}
+
 export function formatDateFull(iso?: string | null): string {
   if (!iso) return '-'
   const cleaned = iso.replace(/\.\d+Z$/, 'Z').replace(/\.\d+/, '')

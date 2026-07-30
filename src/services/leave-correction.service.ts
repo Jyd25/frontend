@@ -88,8 +88,8 @@ export const correctionService = {
     const { data } = await api.post<ApiResponse<AttendanceCorrection>>('/corrections', payload)
     return data.data
   },
-  approve: async (id: number, admin_note?: string) => {
-    const { data } = await api.post<ApiResponse<AttendanceCorrection>>(`/corrections/${id}/approve`, { admin_note })
+  approve: async (id: number, payload?: { admin_note?: string; check_in_time?: string; check_out_time?: string }) => {
+    const { data } = await api.post<ApiResponse<AttendanceCorrection>>(`/corrections/${id}/approve`, payload)
     return data.data
   },
   reject: async (id: number, admin_note: string) => {
