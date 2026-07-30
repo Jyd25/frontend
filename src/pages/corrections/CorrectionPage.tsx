@@ -53,6 +53,7 @@ export default function CorrectionPage() {
       setApproveModal({ open: false, id: null, item: null })
       setApproveData({ note: '', check_in_time: '', check_out_time: '' })
     },
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Gagal menyetujui perbaikan'),
   })
 
   const rejectMutation = useMutation({
