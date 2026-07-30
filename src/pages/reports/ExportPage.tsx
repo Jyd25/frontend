@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Download, FileText, Table } from 'lucide-react'
+import { toast } from 'sonner'
 import { exportService, type ExportData } from '@/services/leave-correction.service'
 import { departmentService } from '@/services/department.service'
 import Button from '@/components/ui/Button'
@@ -146,6 +147,7 @@ export default function ExportPage() {
   const [endDate, setEndDate] = useState('')
   const [deptId, setDeptId] = useState('')
   const [result, setResult] = useState<ExportData | null>(null)
+  const [fetchLoading, setFetchLoading] = useState(false)
 
   const { data: depts } = useQuery({
     queryKey: ['departments-select'],
@@ -153,20 +155,41 @@ export default function ExportPage() {
     staleTime: 60000,
   })
 
-  const handleExport = async (format: 'pdf' | 'excel') => {
+  const fetchData = async () => {
     if (!startDate || !endDate) return
+    setFetchLoading(true)
     try {
       const data = await exportService.getAttendance({
         start_date: startDate,
         end_date: endDate,
         department_id: deptId ? Number(deptId) : undefined,
-        format,
+        format: 'pdf',
       })
       setResult(data)
-      if (format === 'pdf') await exportToPDF(data)
-      else await exportToExcel(data)
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Gagal mengambil data')
+    } finally {
+      setFetchLoading(false)
+    }
+  }
+
+  const handleExportPDF = async () => {
+    if (!result) await fetchData()
+    if (!result) return
+    try {
+      await exportToPDF(result)
     } catch {
-      (await import('sonner')).toast.error('Gagal mengambil data')
+      toast.error('Gagal mencetak PDF. Coba refresh halaman.')
+    }
+  }
+
+  const handleExportExcel = async () => {
+    if (!result) await fetchData()
+    if (!result) return
+    try {
+      await exportToExcel(result)
+    } catch {
+      toast.error('Gagal mengexport Excel. Coba refresh halaman.')
     }
   }
 
@@ -189,10 +212,13 @@ export default function ExportPage() {
             </select>
           </div>
           <div className="flex gap-2">
-            <Button onClick={() => handleExport('pdf')} disabled={!startDate || !endDate}>
+            <Button onClick={fetchData} loading={fetchLoading} variant="outline" disabled={!startDate || !endDate} className="whitespace-nowrap">
+              <Table size={14} className="mr-1" /> Tampilkan
+            </Button>
+            <Button onClick={handleExportPDF} disabled={!result}>
               <FileText size={14} className="mr-1" /> PDF
             </Button>
-            <Button onClick={() => handleExport('excel')} disabled={!startDate || !endDate} variant="outline">
+            <Button onClick={handleExportExcel} disabled={!result} variant="outline">
               <Download size={14} className="mr-1" /> Excel
             </Button>
           </div>

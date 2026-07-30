@@ -51,8 +51,11 @@ export interface Employee {
   nik: string
   name: string
   gender: string
+  birth_place?: string
+  birth_date?: string
   phone?: string
   email: string
+  address?: string
   photo?: string
   department?: Department
   position?: Position
@@ -81,6 +84,11 @@ export interface WorkSchedule {
   name: string
   start_time: string
   end_time: string
+  saturday_start_time?: string
+  saturday_end_time?: string
+  break_start?: string
+  break_end?: string
+  tolerance_minutes?: number
   working_days: string[]
   is_active: boolean
 }

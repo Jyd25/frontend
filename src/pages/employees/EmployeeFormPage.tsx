@@ -23,8 +23,8 @@ const schema = z.object({
   nik: z.string().min(1, 'NIK wajib diisi'),
   name: z.string().min(1, 'Nama wajib diisi'),
   gender: z.string().min(1, 'Gender wajib dipilih'),
-  place_of_birth: z.string().optional(),
-  date_of_birth: z.string().optional(),
+  birth_place: z.string().optional(),
+  birth_date: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email('Email tidak valid').optional().or(z.literal('')),
   address: z.string().optional(),
@@ -110,8 +110,8 @@ export default function EmployeeFormPage() {
       fd.append('nik', formData.nik)
       fd.append('name', formData.name)
       fd.append('gender', formData.gender)
-      if (formData.place_of_birth) fd.append('place_of_birth', formData.place_of_birth)
-      if (formData.date_of_birth) fd.append('date_of_birth', formData.date_of_birth)
+      if (formData.birth_place) fd.append('birth_place', formData.birth_place)
+      if (formData.birth_date) fd.append('birth_date', formData.birth_date)
       if (formData.phone) fd.append('phone', formData.phone)
       if (formData.email) fd.append('email', formData.email)
       if (formData.address) fd.append('address', formData.address)
@@ -204,8 +204,8 @@ export default function EmployeeFormPage() {
                 </select>
                 {errors.gender?.message && <p className="text-xs text-red-500">{errors.gender.message}</p>}
               </div>
-              <Input label="Tempat Lahir" {...register('place_of_birth')} />
-              <Input label="Tanggal Lahir" type="date" {...register('date_of_birth')} />
+              <Input label="Tempat Lahir" {...register('birth_place')} />
+              <Input label="Tanggal Lahir" type="date" {...register('birth_date')} />
               <Input label="No HP" {...register('phone')} />
               <Input label="Email" type="email" {...register('email')} error={errors.email?.message} />
             </div>
