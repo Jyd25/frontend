@@ -70,17 +70,17 @@ export default function MainLayout() {
 
   const prevProfileRef = useRef<string | null>(null)
   useEffect(() => {
-    if (profileData && user) {
-      const serialized = JSON.stringify(profileData)
-      if (serialized !== prevProfileRef.current) {
-        prevProfileRef.current = serialized
-        const currentEmployee = user.employee
-        const newEmployee = (profileData as any).employee
-        if (currentEmployee?.photo && !newEmployee?.photo) return
-        if ((profileData as any).id !== user.id) return
-        setUser(profileData as any)
-      }
+    if (!profileData) return
+    const serialized = JSON.stringify(profileData)
+    if (serialized === prevProfileRef.current) return
+    prevProfileRef.current = serialized
+    if (user) {
+      const currentEmployee = user.employee
+      const newEmployee = (profileData as any).employee
+      if (currentEmployee?.photo && !newEmployee?.photo) return
+      if ((profileData as any).id !== user.id) return
     }
+    setUser(profileData as any)
   }, [profileData, setUser, user])
 
   useEffect(() => {

@@ -367,14 +367,15 @@ export default function AttendancePage() {
                     : item.check_out_time
                       ? new Date(item.check_out_time).toLocaleDateString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
                       : '-'
+                  const avatarPhoto = item.employee?.photo || item.checkin_photo_data || item.photo_data
 
                   return (
                     <tr key={item.id} className="border-b border-gray-200/80 last:border-0 hover:bg-gray-50/50">
                       {!isStaff && (
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-2">
-                            {(item.checkin_photo_data || item.photo_data) ? (
-                              <img src={item.checkin_photo_data || item.photo_data} alt="" className="w-7 h-7 rounded-full object-cover border border-gray-200 flex-shrink-0" />
+                            {avatarPhoto ? (
+                              <img src={avatarPhoto} alt="" className="w-7 h-7 rounded-full object-cover border border-gray-200 flex-shrink-0" />
                             ) : (
                               <div className="w-7 h-7 rounded-full gradient-primary flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
                                 {item.employee?.name?.charAt(0)?.toUpperCase() || '?'}

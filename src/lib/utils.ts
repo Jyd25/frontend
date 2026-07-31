@@ -8,8 +8,8 @@ export function cn(...inputs: ClassValue[]) {
 export function formatTime(t?: string | null): string {
   if (!t) return '-'
   if (/^\d{2}:\d{2}$/.test(t)) return t
-  const timeMatch = t.match(/^(\d{2}:\d{2})/)
-  if (timeMatch) return timeMatch[1]
+  const m = t.match(/(?:T|\s)(\d{2}:\d{2})/) || t.match(/^(\d{2}:\d{2})/)
+  if (m) return m[1]
   const cleaned = t.replace(/\.\d+Z$/, 'Z').replace(/\.\d+/, '')
   try {
     const d = new Date(cleaned)

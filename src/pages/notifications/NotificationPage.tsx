@@ -8,7 +8,8 @@ import type { Notification } from '@/types/api'
 
 function timeAgo(dateStr: string) {
   const now = new Date()
-  const date = new Date(dateStr)
+  const date = new Date(dateStr.replace(' ', 'T'))
+  if (isNaN(date.getTime())) return '-'
   const diffMs = now.getTime() - date.getTime()
   const diffMins = Math.floor(diffMs / 60000)
   if (diffMins < 1) return 'Baru saja'

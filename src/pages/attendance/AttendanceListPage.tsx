@@ -89,7 +89,7 @@ const columns = [
       key: 'employee_name',
       header: 'Karyawan',
       render: (item: Attendance) => {
-        const photo = item.checkin_photo_data || item.photo_data
+        const photo = item.employee?.photo || item.checkin_photo_data || item.photo_data
         return (
           <div className="flex items-center gap-2">
             {photo ? (

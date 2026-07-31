@@ -71,7 +71,7 @@ export default function HistoryPage() {
       key: 'employee_name',
       header: 'Nama',
       render: (item: Attendance) => {
-        const photo = item.photo_data
+        const photo = item.employee?.photo || item.photo_data
         return (
           <div className="flex items-center gap-2">
             {photo ? (
