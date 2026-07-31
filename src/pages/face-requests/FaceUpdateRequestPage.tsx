@@ -6,6 +6,7 @@ import { formatDateFull } from '@/lib/utils'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { faceUpdateRequestService, type FaceUpdateRequest } from '@/services/face-geo.service'
 import { useFaceRecognition } from '@/hooks/useFaceRecognition'
+import { invalidateAttendanceQueries, invalidateFaceQueries } from '@/lib/queryInvalidation'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
@@ -32,13 +33,14 @@ export default function FaceUpdateRequestPage() {
 
   const approveMutation = useMutation({
     mutationFn: faceUpdateRequestService.approve,
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['face-update-requests'] }); toast.success('Permintaan disetujui') },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['face-update-requests'] }); invalidateFaceQueries(queryClient); invalidateAttendanceQueries(queryClient); toast.success('Permintaan disetujui') },
   })
 
   const rejectMutation = useMutation({
     mutationFn: ({ id, note }: { id: number; note: string }) => faceUpdateRequestService.reject(id, note),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['face-update-requests'] })
+      invalidateFaceQueries(queryClient)
       toast.success('Permintaan ditolak')
       setRejectModal({ open: false, id: null })
       setRejectNote('')
@@ -167,6 +169,7 @@ function FaceRequestForm({ open, onClose }: { open: boolean; onClose: () => void
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['face-update-requests'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread'] })
       toast.success('Permintaan update wajah berhasil dikirim')
       handleClose()
     },

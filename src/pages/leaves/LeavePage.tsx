@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { Plus, CheckCircle, XCircle, Clock, Trash2 } from 'lucide-react'
 import { leaveService, type LeaveRequest } from '@/services/leave-correction.service'
 import { formatDate } from '@/lib/utils'
+import { invalidateAttendanceQueries } from '@/lib/queryInvalidation'
 import { useAuthStore } from '@/stores/useAuthStore'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -39,6 +40,7 @@ export default function LeavePage() {
     mutationFn: leaveService.create,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leaves'] })
+      invalidateAttendanceQueries(queryClient)
       toast.success('Pengajuan izin berhasil dikirim')
       setShowForm(false)
       setForm({ type: 'permission', start_date: '', end_date: '', reason: '' })
@@ -50,6 +52,7 @@ export default function LeavePage() {
     mutationFn: ({ id, note }: { id: number; note?: string }) => leaveService.approve(id, note),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leaves'] })
+      invalidateAttendanceQueries(queryClient)
       toast.success('Izin disetujui')
       setApproveModal({ open: false, id: null, item: null })
       setApproveNote('')
@@ -61,6 +64,7 @@ export default function LeavePage() {
     mutationFn: ({ id, note }: { id: number; note: string }) => leaveService.reject(id, note),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leaves'] })
+      invalidateAttendanceQueries(queryClient)
       toast.success('Izin ditolak')
       setRejectModal({ open: false, id: null })
       setRejectNote('')
@@ -72,6 +76,7 @@ export default function LeavePage() {
     mutationFn: leaveService.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leaves'] })
+      invalidateAttendanceQueries(queryClient)
       toast.success('Pengajuan dihapus')
     },
   })

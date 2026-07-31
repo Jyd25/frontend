@@ -13,6 +13,7 @@ import { departmentService } from '@/services/department.service'
 import { positionService } from '@/services/position.service'
 import { scheduleService } from '@/services/schedule.service'
 import { loadModels, useFaceRecognition, descriptorToArray } from '@/hooks/useFaceRecognition'
+import { invalidateEmployeeQueries } from '@/lib/queryInvalidation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Card from '@/components/ui/Card'
@@ -124,7 +125,7 @@ export default function EmployeeFormPage() {
       return isEdit ? employeeService.update(Number(id), fd) : employeeService.create(fd)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['employees'] })
+      invalidateEmployeeQueries(queryClient)
       toast.success(isEdit ? 'Karyawan berhasil diperbarui' : 'Karyawan berhasil ditambahkan')
       if (isEdit) {
         setActiveTab('face')

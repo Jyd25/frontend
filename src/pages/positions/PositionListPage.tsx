@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { Plus, Search, Pencil, Trash2 } from 'lucide-react'
 import { positionService } from '@/services/position.service'
 import api from '@/lib/axios'
+import { invalidateAdminQueries } from '@/lib/queryInvalidation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Card from '@/components/ui/Card'
@@ -47,7 +48,7 @@ export default function PositionListPage() {
   const createMutation = useMutation({
     mutationFn: (payload: Partial<Position>) => positionService.create(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['positions'] })
+      invalidateAdminQueries(queryClient)
       toast.success('Jabatan berhasil ditambahkan')
       closeFormModal()
     },
@@ -60,7 +61,7 @@ export default function PositionListPage() {
     mutationFn: ({ id, payload }: { id: number; payload: Partial<Position> }) =>
       positionService.update(id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['positions'] })
+      invalidateAdminQueries(queryClient)
       toast.success('Jabatan berhasil diperbarui')
       closeFormModal()
     },
@@ -72,7 +73,7 @@ export default function PositionListPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => positionService.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['positions'] })
+      invalidateAdminQueries(queryClient)
       toast.success('Jabatan berhasil dihapus')
       setDeleteModal({ open: false, position: null })
     },

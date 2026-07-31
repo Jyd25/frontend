@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Plus, Search, Pencil, Trash2 } from 'lucide-react'
 import { locationService } from '@/services/location.service'
+import { invalidateAdminQueries } from '@/lib/queryInvalidation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Card from '@/components/ui/Card'
@@ -45,7 +46,7 @@ export default function LocationListPage() {
   const createMutation = useMutation({
     mutationFn: (payload: Partial<AttendanceLocation>) => locationService.create(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['locations'] })
+      invalidateAdminQueries(queryClient)
       toast.success('Lokasi berhasil ditambahkan')
       closeFormModal()
     },
@@ -58,7 +59,7 @@ export default function LocationListPage() {
     mutationFn: ({ id, payload }: { id: number; payload: Partial<AttendanceLocation> }) =>
       locationService.update(id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['locations'] })
+      invalidateAdminQueries(queryClient)
       toast.success('Lokasi berhasil diperbarui')
       closeFormModal()
     },
@@ -70,7 +71,7 @@ export default function LocationListPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => locationService.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['locations'] })
+      invalidateAdminQueries(queryClient)
       toast.success('Lokasi berhasil dihapus')
       setDeleteModal({ open: false, location: null })
     },

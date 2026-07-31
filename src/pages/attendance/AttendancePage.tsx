@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { Clock, MapPin, Camera, ChevronLeft, ChevronRight, AlertTriangle, Send, X, Pencil, Save } from 'lucide-react'
 import { attendanceService } from '@/services/attendance.service'
 import { correctionService } from '@/services/leave-correction.service'
+import { invalidateAttendanceQueries } from '@/lib/queryInvalidation'
 import { useAuthStore } from '@/stores/useAuthStore'
 import PresensiModal from '@/components/attendance/PresensiModal'
 import Button from '@/components/ui/Button'
@@ -35,6 +36,16 @@ function getCheckoutBadge(status?: string) {
     case 'Pulang Cepat': return <Badge variant="warning">Pulang Cepat</Badge>
     case 'Libur': return <Badge variant="info">Libur</Badge>
     default: return <Badge>{status}</Badge>
+  }
+}
+
+function getStatusColor(status?: string) {
+  switch (status) {
+    case 'Hadir': case 'Present': return 'bg-green-500'
+    case 'Terlambat': case 'Late': return 'bg-amber-500'
+    case 'Izin': case 'Permission': return 'bg-blue-500'
+    case 'Sakit': case 'Leave': return 'bg-amber-400'
+    default: return 'bg-red-500'
   }
 }
 
@@ -84,6 +95,7 @@ export default function AttendancePage() {
     mutationFn: correctionService.create,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['corrections'] })
+      invalidateAttendanceQueries(queryClient)
       toast.success('Pengajuan perbaikan berhasil dikirim')
       setShowCorrectionModal(false)
       setCorrectionDate('')
@@ -96,7 +108,7 @@ export default function AttendancePage() {
     mutationFn: ({ id, payload }: { id: number; payload: { check_in_time?: string | null; check_out_time?: string | null } }) =>
       attendanceService.update(id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['attendances-monthly'] })
+      invalidateAttendanceQueries(queryClient)
       toast.success('Data kehadiran berhasil diperbarui')
       setShowEditModal(false)
       setEditItem(null)
@@ -112,6 +124,7 @@ export default function AttendancePage() {
   const attendanceMap = useMemo(() => {
     const map: Record<string, Attendance> = {}
     const items = monthData?.data?.items || []
+    if (!isStaff) return map
     for (const item of items) {
       if (item.employee?.id !== user?.employee_id) continue
       let dateKey: string | null = null
@@ -129,7 +142,28 @@ export default function AttendancePage() {
       }
     }
     return map
-  }, [monthData, user])
+  }, [monthData, user, isStaff])
+
+  const dayAttendanceMap = useMemo(() => {
+    const map: Record<string, Attendance[]> = {}
+    const items = monthData?.data?.items || []
+    for (const item of items) {
+      let dateKey: string | null = null
+      if (item.check_in_time) {
+        dateKey = new Date(item.check_in_time).toLocaleDateString('sv-SE')
+      } else if (item.check_out_time) {
+        dateKey = new Date(item.check_out_time).toLocaleDateString('sv-SE')
+      }
+      if (dateKey) {
+        if (!map[dateKey]) map[dateKey] = []
+        map[dateKey].push(item)
+      }
+    }
+    for (const key of Object.keys(map)) {
+      map[key].sort((a, b) => (a.employee?.name || '').localeCompare(b.employee?.name || ''))
+    }
+    return map
+  }, [monthData])
 
   const calendarDays: (number | null)[] = []
   for (let i = 0; i < firstDayOfWeek; i++) calendarDays.push(null)
@@ -244,8 +278,9 @@ export default function AttendancePage() {
           {calendarDays.map((day, i) => {
             if (day === null) return <div key={`empty-${i}`} className="bg-white min-h-[100px] sm:min-h-[120px]" />
             const dateKey = formatDateKey(day)
-            const attendance = attendanceMap[dateKey]
-            const hasData = !!attendance
+            const attendance = isStaff ? attendanceMap[dateKey] : undefined
+            const dayGroup = !isStaff ? dayAttendanceMap[dateKey] : undefined
+            const hasData = isStaff ? !!attendance : !!dayGroup && dayGroup.length > 0
             const todayMark = isToday(day)
 
             return (
@@ -254,80 +289,112 @@ export default function AttendancePage() {
                   <span className={`text-xs font-semibold ${todayMark ? 'text-sky-600' : isPast(day) && !hasData ? 'text-gray-300' : 'text-gray-700'}`}>
                     {day}
                   </span>
-                  {todayMark && <span className="text-[9px] font-bold text-sky-500 bg-sky-50 px-1.5 py-0.5 rounded-full">HARI INI</span>}
-                  {hasData && (
-                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{
-                      backgroundColor: attendance.attendance_status === 'Hadir' || attendance.attendance_status === 'Present' ? '#22c55e'
-                        : attendance.attendance_status === 'Terlambat' || attendance.attendance_status === 'Late' ? '#f59e0b'
-                        : attendance.attendance_status === 'Izin' || attendance.attendance_status === 'Permission' ? '#3b82f6'
-                        : attendance.attendance_status === 'Sakit' || attendance.attendance_status === 'Leave' ? '#f59e0b'
-                        : '#ef4444'
-                    }} />
-                  )}
+                  <div className="flex items-center gap-1">
+                    {todayMark && <span className="text-[9px] font-bold text-sky-500 bg-sky-50 px-1.5 py-0.5 rounded-full">HARI INI</span>}
+                    {attendance && (
+                      <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{
+                        backgroundColor: attendance.attendance_status === 'Hadir' || attendance.attendance_status === 'Present' ? '#22c55e'
+                          : attendance.attendance_status === 'Terlambat' || attendance.attendance_status === 'Late' ? '#f59e0b'
+                          : attendance.attendance_status === 'Izin' || attendance.attendance_status === 'Permission' ? '#3b82f6'
+                          : attendance.attendance_status === 'Sakit' || attendance.attendance_status === 'Leave' ? '#f59e0b'
+                          : '#ef4444'
+                      }} />
+                    )}
+                    {dayGroup && dayGroup.length > 0 && (
+                      <span className="text-[9px] font-bold text-sky-600 bg-sky-50 px-1.5 py-0.5 rounded-full">{dayGroup.length} org</span>
+                    )}
+                  </div>
                 </div>
 
-                {hasData ? (
+                {isStaff ? (
+                  attendance ? (
+                    <div className="flex-1 space-y-1">
+                      {/* Face photo thumbnails */}
+                      <div className="flex items-center gap-1">
+                        {(attendance.checkin_photo_data || attendance.photo_data) && (
+                          <div className={`w-6 h-6 rounded-md overflow-hidden border flex-shrink-0 ${
+                            attendance.face_status === 'Matched' || attendance.face_status === 'matched' ? 'border-emerald-400' : 'border-amber-400'
+                          }`}>
+                            <img src={attendance.checkin_photo_data || attendance.photo_data} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                        {attendance.checkout_photo_data && (
+                          <div className="w-6 h-6 rounded-md overflow-hidden border border-orange-400 flex-shrink-0">
+                            <img src={attendance.checkout_photo_data} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Times */}
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-1">
+                          <Clock size={9} className="text-sky-500 flex-shrink-0" />
+                          <span className={`text-[10px] ${attendance.check_in_time ? 'text-gray-700 font-medium' : 'text-amber-500'}`}>
+                            {attendance.check_in_time ? formatTime(attendance.check_in_time) : '—'}
+                          </span>
+                          {!attendance.check_in_time && isStaff && isPast(day) && (
+                            <button onClick={() => openCorrection(day, 'check_in')} className="text-[9px] text-sky-500 hover:text-sky-700 font-medium flex items-center gap-0.5 ml-auto" title="Ajukan perbaikan">
+                              <Send size={7} />
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Clock size={9} className="text-orange-500 flex-shrink-0" />
+                          <span className={`text-[10px] ${attendance.check_out_time ? 'text-gray-700 font-medium' : 'text-amber-500'}`}>
+                            {attendance.check_out_time ? formatTime(attendance.check_out_time) : '—'}
+                          </span>
+                          {!attendance.check_out_time && isStaff && isPast(day) && (
+                            <button onClick={() => openCorrection(day, 'check_out')} className="text-[9px] text-sky-500 hover:text-sky-700 font-medium flex items-center gap-0.5 ml-auto" title="Ajukan perbaikan">
+                              <Send size={7} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Location */}
+                      {(attendance.address || attendance.location?.location_name) && (
+                        <div className="flex items-center gap-0.5">
+                          <MapPin size={8} className="text-emerald-500 flex-shrink-0" />
+                          <span className="text-[9px] text-gray-500 truncate">{attendance.address || attendance.location?.location_name}</span>
+                        </div>
+                      )}
+
+                      {/* Status badge */}
+                      <div>{getStatusBadge(attendance.attendance_status)}</div>
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center">
+                      {isPast(day) ? (
+                        <span className="text-[10px] text-red-300 font-medium">Alpha</span>
+                      ) : todayMark ? (
+                        <span className="text-[10px] text-gray-300">-</span>
+                      ) : null}
+                    </div>
+                  )
+                ) : dayGroup && dayGroup.length > 0 ? (
                   <div className="flex-1 space-y-1">
-                    {/* Face photo thumbnails */}
-                    <div className="flex items-center gap-1">
-                      {(attendance.checkin_photo_data || attendance.photo_data) && (
-                        <div className={`w-6 h-6 rounded-md overflow-hidden border flex-shrink-0 ${
-                          attendance.face_status === 'Matched' || attendance.face_status === 'matched' ? 'border-emerald-400' : 'border-amber-400'
-                        }`}>
-                          <img src={attendance.checkin_photo_data || attendance.photo_data} alt="" className="w-full h-full object-cover" />
+                    {dayGroup.slice(0, 3).map((a) => (
+                      <div key={a.id} className="flex items-center gap-1 min-w-0">
+                        <div className="w-4 h-4 rounded-full overflow-hidden border border-gray-200 flex-shrink-0">
+                          {a.employee?.photo ? (
+                            <img src={a.employee.photo} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full gradient-primary flex items-center justify-center text-white text-[7px] font-bold">
+                              {a.employee?.name?.charAt(0)?.toUpperCase() || '?'}
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {attendance.checkout_photo_data && (
-                        <div className="w-6 h-6 rounded-md overflow-hidden border border-orange-400 flex-shrink-0">
-                          <img src={attendance.checkout_photo_data} alt="" className="w-full h-full object-cover" />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Times */}
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-1">
-                        <Clock size={9} className="text-sky-500 flex-shrink-0" />
-                        <span className={`text-[10px] ${attendance.check_in_time ? 'text-gray-700 font-medium' : 'text-amber-500'}`}>
-                          {attendance.check_in_time ? formatTime(attendance.check_in_time) : '—'}
-                        </span>
-                        {!attendance.check_in_time && isStaff && isPast(day) && (
-                          <button onClick={() => openCorrection(day, 'check_in')} className="text-[9px] text-sky-500 hover:text-sky-700 font-medium flex items-center gap-0.5 ml-auto" title="Ajukan perbaikan">
-                            <Send size={7} />
-                          </button>
-                        )}
+                        <span className="text-[9px] text-gray-600 truncate">{a.employee?.name?.split(' ')[0]}</span>
+                        <span className={`ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0 ${getStatusColor(a.attendance_status)}`} />
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Clock size={9} className="text-orange-500 flex-shrink-0" />
-                        <span className={`text-[10px] ${attendance.check_out_time ? 'text-gray-700 font-medium' : 'text-amber-500'}`}>
-                          {attendance.check_out_time ? formatTime(attendance.check_out_time) : '—'}
-                        </span>
-                        {!attendance.check_out_time && isStaff && isPast(day) && (
-                          <button onClick={() => openCorrection(day, 'check_out')} className="text-[9px] text-sky-500 hover:text-sky-700 font-medium flex items-center gap-0.5 ml-auto" title="Ajukan perbaikan">
-                            <Send size={7} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Location */}
-                    {(attendance.address || attendance.location?.location_name) && (
-                      <div className="flex items-center gap-0.5">
-                        <MapPin size={8} className="text-emerald-500 flex-shrink-0" />
-                        <span className="text-[9px] text-gray-500 truncate">{attendance.address || attendance.location?.location_name}</span>
-                      </div>
+                    ))}
+                    {dayGroup.length > 3 && (
+                      <div className="text-[9px] text-gray-400 font-medium">+{dayGroup.length - 3} lainnya</div>
                     )}
-
-                    {/* Status badge */}
-                    <div>{getStatusBadge(attendance.attendance_status)}</div>
                   </div>
                 ) : (
                   <div className="flex-1 flex items-center justify-center">
-                    {isPast(day) ? (
-                      <span className="text-[10px] text-red-300 font-medium">Alpha</span>
-                    ) : todayMark ? (
-                      <span className="text-[10px] text-gray-300">-</span>
-                    ) : null}
+                    {todayMark ? <span className="text-[10px] text-gray-300">-</span> : null}
                   </div>
                 )}
               </div>

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Plus, Search, Pencil, Trash2 } from 'lucide-react'
 import { employeeService } from '@/services/employee.service'
+import { invalidateEmployeeQueries } from '@/lib/queryInvalidation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Card from '@/components/ui/Card'
@@ -46,7 +47,7 @@ export default function EmployeeListPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => employeeService.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['employees'] })
+      invalidateEmployeeQueries(queryClient)
       toast.success('Karyawan berhasil dihapus')
       setDeleteModal({ open: false, employee: null })
     },

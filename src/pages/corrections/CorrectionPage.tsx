@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { Plus, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
 import { correctionService, type AttendanceCorrection } from '@/services/leave-correction.service'
 import { formatTime, formatDate } from '@/lib/utils'
+import { invalidateAttendanceQueries } from '@/lib/queryInvalidation'
 import { useAuthStore } from '@/stores/useAuthStore'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -37,6 +38,7 @@ export default function CorrectionPage() {
     mutationFn: correctionService.create,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['corrections'] })
+      invalidateAttendanceQueries(queryClient)
       toast.success('Pengajuan perbaikan berhasil dikirim')
       setShowForm(false)
       setForm({ date: '', check_in_time: '', check_out_time: '', reason: '' })
@@ -49,6 +51,7 @@ export default function CorrectionPage() {
       correctionService.approve(id, { admin_note: note, check_in_time: check_in_time || undefined, check_out_time: check_out_time || undefined }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['corrections'] })
+      invalidateAttendanceQueries(queryClient)
       toast.success('Perbaikan disetujui')
       setApproveModal({ open: false, id: null, item: null })
       setApproveData({ note: '', check_in_time: '', check_out_time: '' })
@@ -60,6 +63,7 @@ export default function CorrectionPage() {
     mutationFn: ({ id, note }: { id: number; note: string }) => correctionService.reject(id, note),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['corrections'] })
+      invalidateAttendanceQueries(queryClient)
       toast.success('Perbaikan ditolak')
       setRejectModal({ open: false, id: null })
       setRejectNote('')

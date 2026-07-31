@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { Plus, Search, Pencil, Trash2, Shield } from 'lucide-react'
 import { userService, type CreateUserPayload } from '@/services/user.service'
 import api from '@/lib/axios'
+import { invalidateAdminQueries } from '@/lib/queryInvalidation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Card from '@/components/ui/Card'
@@ -78,7 +79,7 @@ export default function UserListPage() {
   const createMutation = useMutation({
     mutationFn: (payload: CreateUserPayload) => userService.create(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+      invalidateAdminQueries(queryClient)
       toast.success('User berhasil ditambahkan')
       closeFormModal()
     },
@@ -91,7 +92,7 @@ export default function UserListPage() {
     mutationFn: ({ id, payload }: { id: number; payload: any }) =>
       userService.update(id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+      invalidateAdminQueries(queryClient)
       toast.success('User berhasil diperbarui')
       closeFormModal()
     },
@@ -103,7 +104,7 @@ export default function UserListPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => userService.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+      invalidateAdminQueries(queryClient)
       toast.success('User berhasil dihapus')
       setDeleteModal({ open: false, user: null })
     },

@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { authService } from '@/services/auth.service'
 import { faceService, type FaceDataset } from '@/services/face-geo.service'
 import { loadModels, useFaceRecognition, descriptorToArray } from '@/hooks/useFaceRecognition'
+import { invalidateAttendanceQueries } from '@/lib/queryInvalidation'
 import api from '@/lib/axios'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -106,7 +107,8 @@ function ProfileEditTab({ employee }: { employee: any }) {
       setUser(updatedUser)
       queryClient.invalidateQueries({ queryKey: ['profile-full'] })
       queryClient.invalidateQueries({ queryKey: ['profile'] })
-      toast.success('Profil berhasil diperbarui')
+      invalidateAttendanceQueries(queryClient)
+      toast.success('Foto profil berhasil diperbarui')
     },
     onError: (e: any) => toast.error(e.response?.data?.message || 'Gagal memperbarui profil'),
   })

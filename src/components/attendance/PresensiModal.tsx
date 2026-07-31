@@ -9,6 +9,7 @@ import { faceService, geolocationService } from '@/services/face-geo.service'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { loadModels, useFaceRecognition, descriptorToArray } from '@/hooks/useFaceRecognition'
 import { reverseGeocode } from '@/lib/geocode'
+import { invalidateAttendanceQueries, invalidateFaceQueries } from '@/lib/queryInvalidation'
 import LocationMap from '@/components/ui/LocationMap'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
@@ -77,8 +78,7 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
     mutationFn: (payload: { latitude: number; longitude: number; location_id?: number; face_score?: number; face_status?: string; photo_data?: string; address?: string }) =>
       attendanceService.checkIn(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['attendance-today'] })
-      queryClient.invalidateQueries({ queryKey: ['attendances-monthly'] })
+      invalidateAttendanceQueries(queryClient)
       toast.success('Check-in berhasil!')
       setStep('done')
     },
@@ -92,8 +92,8 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
     mutationFn: (payload: { face_score?: number; face_status?: string; photo_data?: string; latitude?: number; longitude?: number; location_id?: number; address?: string }) =>
       attendanceService.checkOut(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['attendance-today'] })
-      queryClient.invalidateQueries({ queryKey: ['attendances-monthly'] })
+      invalidateAttendanceQueries(queryClient)
+      invalidateFaceQueries(queryClient)
       toast.success('Check-out berhasil!')
       setStep('done')
     },

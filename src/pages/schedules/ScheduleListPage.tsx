@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { Plus, Search, Pencil, Trash2 } from 'lucide-react'
 import { formatTime } from '@/lib/utils'
 import { scheduleService } from '@/services/schedule.service'
+import { invalidateAdminQueries } from '@/lib/queryInvalidation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Card from '@/components/ui/Card'
@@ -13,6 +14,20 @@ import Modal from '@/components/ui/Modal'
 import type { WorkSchedule } from '@/types/api'
 
 const DAYS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
+
+const DAY_TO_EN: Record<string, string> = {
+  Senin: 'monday',
+  Selasa: 'tuesday',
+  Rabu: 'wednesday',
+  Kamis: 'thursday',
+  Jumat: 'friday',
+  Sabtu: 'saturday',
+  Minggu: 'sunday',
+}
+
+const EN_TO_DAY: Record<string, string> = Object.fromEntries(
+  Object.entries(DAY_TO_EN).map(([id, en]) => [en, id])
+)
 
 interface FormState {
   name: string
@@ -47,7 +62,7 @@ export default function ScheduleListPage() {
   const createMutation = useMutation({
     mutationFn: (payload: Partial<WorkSchedule>) => scheduleService.create(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['schedules'] })
+      invalidateAdminQueries(queryClient)
       toast.success('Jadwal berhasil ditambahkan')
       closeFormModal()
     },
@@ -60,7 +75,7 @@ export default function ScheduleListPage() {
     mutationFn: ({ id, payload }: { id: number; payload: Partial<WorkSchedule> }) =>
       scheduleService.update(id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['schedules'] })
+      invalidateAdminQueries(queryClient)
       toast.success('Jadwal berhasil diperbarui')
       closeFormModal()
     },
@@ -72,7 +87,7 @@ export default function ScheduleListPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => scheduleService.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['schedules'] })
+      invalidateAdminQueries(queryClient)
       toast.success('Jadwal berhasil dihapus')
       setDeleteModal({ open: false, schedule: null })
     },
@@ -88,7 +103,7 @@ export default function ScheduleListPage() {
         name: sched.name,
         start_time: sched.start_time,
         end_time: sched.end_time,
-        working_days: sched.working_days || [],
+        working_days: (sched.working_days || []).map((d) => EN_TO_DAY[d] || d),
       })
     } else {
       setFormModal({ open: true, schedule: null })
@@ -123,10 +138,14 @@ export default function ScheduleListPage() {
       toast.error('Pilih minimal satu hari kerja')
       return
     }
+    const payload = {
+      ...form,
+      working_days: form.working_days.map((d) => DAY_TO_EN[d] || d),
+    }
     if (formModal.schedule) {
-      updateMutation.mutate({ id: formModal.schedule.id, payload: form })
+      updateMutation.mutate({ id: formModal.schedule.id, payload })
     } else {
-      createMutation.mutate(form)
+      createMutation.mutate(payload)
     }
   }
 
@@ -140,7 +159,7 @@ export default function ScheduleListPage() {
       render: (item: WorkSchedule) => (
         <div className="flex flex-wrap gap-1">
           {item.working_days?.map((d) => (
-            <Badge key={d} variant="info">{d}</Badge>
+            <Badge key={d} variant="info">{EN_TO_DAY[d] || d}</Badge>
           ))}
         </div>
       ),

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Plus, Search, Pencil, Trash2 } from 'lucide-react'
 import { departmentService } from '@/services/department.service'
+import { invalidateAdminQueries } from '@/lib/queryInvalidation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Card from '@/components/ui/Card'
@@ -36,7 +37,7 @@ export default function DepartmentListPage() {
   const createMutation = useMutation({
     mutationFn: (payload: Partial<Department>) => departmentService.create(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['departments'] })
+      invalidateAdminQueries(queryClient)
       toast.success('Departemen berhasil ditambahkan')
       closeFormModal()
     },
@@ -49,7 +50,7 @@ export default function DepartmentListPage() {
     mutationFn: ({ id, payload }: { id: number; payload: Partial<Department> }) =>
       departmentService.update(id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['departments'] })
+      invalidateAdminQueries(queryClient)
       toast.success('Departemen berhasil diperbarui')
       closeFormModal()
     },
@@ -61,7 +62,7 @@ export default function DepartmentListPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => departmentService.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['departments'] })
+      invalidateAdminQueries(queryClient)
       toast.success('Departemen berhasil dihapus')
       setDeleteModal({ open: false, department: null })
     },
