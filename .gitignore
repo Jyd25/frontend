@@ -15,6 +15,9 @@ dist-ssr
 # OpenCode
 .opencode
 
+# Architecture docs — keep local only, never push to GitHub
+docs/
+
 # Environment
 .env
 .env.local
