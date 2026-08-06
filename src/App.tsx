@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react'
 import AuthLayout from './components/layouts/AuthLayout'
 import MainLayout from './components/layouts/MainLayout'
 import { useAuthStore } from './stores/useAuthStore'
+import { useSessionTimeout } from './hooks/useSessionTimeout'
 
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
@@ -41,6 +42,8 @@ function RootRedirect() {
 }
 
 export default function App() {
+  useSessionTimeout()
+
   return (
     <Suspense fallback={<Loading />}>
       <Routes>
