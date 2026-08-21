@@ -8,7 +8,7 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   if (!config.headers.Authorization) {
-    const token = localStorage.getItem('access_token')
+    const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token')
     if (token) config.headers.Authorization = `Bearer ${token}`
   }
   return config
@@ -26,6 +26,8 @@ function forceLogout() {
   redirectingToLogin = true
   localStorage.removeItem('access_token')
   localStorage.removeItem('refresh_token')
+  sessionStorage.removeItem('access_token')
+  sessionStorage.removeItem('refresh_token')
   sessionStorage.clear()
   window.location.href = '/login'
 }
@@ -41,7 +43,7 @@ api.interceptors.response.use(
       try {
         if (!refreshPromise) {
           refreshPromise = (async () => {
-            const refreshToken = localStorage.getItem('refresh_token')
+            const refreshToken = localStorage.getItem('refresh_token') || sessionStorage.getItem('refresh_token')
             if (!refreshToken) throw new Error('No refresh token available')
             const { data } = await api.post<{ data: { token: { access_token: string } } }>(
               '/auth/refresh',
@@ -49,8 +51,9 @@ api.interceptors.response.use(
               { headers: { Authorization: `Bearer ${refreshToken}` } }
             )
             const token = data.data.token.access_token
-            localStorage.setItem('access_token', token)
-            localStorage.setItem('refresh_token', token)
+            const store = localStorage.getItem('access_token') ? localStorage : sessionStorage
+            store.setItem('access_token', token)
+            store.setItem('refresh_token', token)
             return token
           })().finally(() => {
             refreshPromise = null

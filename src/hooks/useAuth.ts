@@ -9,11 +9,11 @@ export function useLogin() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ email, password }: { email: string; password: string }) =>
-      authService.login(email, password),
+    mutationFn: ({ email, password, remember_me }: { email: string; password: string; remember_me: boolean }) =>
+      authService.login(email, password, remember_me),
     onSuccess: (data) => {
       queryClient.clear()
-      setAuth(data.user, data.token.access_token, data.token.refresh_token)
+      setAuth(data.user, data.token.access_token, data.token.refresh_token, data.remember_me)
       const defaultRoute = ['Administrator', 'Pimpinan'].includes(data.user.role?.name) ? '/dashboard' : '/attendance'
       toast.success(`Login berhasil! Selamat datang, ${data.user.name}`, {
         description: `Role: ${data.user.role?.name || '-'}`,

@@ -10,6 +10,7 @@ import { z } from 'zod'
 const loginSchema = z.object({
   email: z.string().email('Email tidak valid'),
   password: z.string().min(6, 'Password minimal 6 karakter'),
+  remember_me: z.boolean(),
 })
 
 type LoginForm = z.infer<typeof loginSchema>
@@ -55,6 +56,14 @@ export default function LoginPage() {
           error={errors.password?.message}
           {...register('password')}
         />
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            {...register('remember_me')}
+          />
+          <span className="text-sm text-gray-600">Ingat saya</span>
+        </label>
         <Button type="submit" loading={login.isPending} className="w-full group" size="lg">
           Masuk
           <ArrowRight size={16} className="ml-2 group-hover:translate-x-0.5 transition-transform" />

@@ -9,11 +9,12 @@ interface LoginData {
     expires_in: number
     token_type: string
   }
+  remember_me: boolean
 }
 
 export const authService = {
-  login: async (email: string, password: string) => {
-    const { data } = await api.post<ApiResponse<LoginData>>('/auth/login', { email, password })
+  login: async (email: string, password: string, rememberMe: boolean = false) => {
+    const { data } = await api.post<ApiResponse<LoginData>>('/auth/login', { email, password, remember_me: rememberMe })
     return data.data
   },
   logout: async () => {
