@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Clock, MapPin, Camera, ChevronLeft, ChevronRight, AlertTriangle, Send, X, Pencil, Save } from 'lucide-react'
+import { Clock, MapPin, Camera, ChevronLeft, ChevronRight, AlertTriangle, Send, X, Pencil, Save, CalendarDays, Coffee } from 'lucide-react'
 import { attendanceService } from '@/services/attendance.service'
 import { correctionService } from '@/services/leave-correction.service'
 import { invalidateAttendanceQueries } from '@/lib/queryInvalidation'
@@ -17,6 +17,24 @@ import type { Attendance } from '@/types/api'
 
 const MONTH_NAMES = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
 const DAY_NAMES = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
+const DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+
+function getTodaySchedule(schedule?: { start_time?: string; end_time?: string; saturday_start_time?: string; saturday_end_time?: string; working_days?: string[] }) {
+  const now = new Date()
+  const isSaturday = now.getDay() === 6
+  const dayKey = DAY_KEYS[now.getDay()]
+  const isWorkingDay = schedule?.working_days ? schedule.working_days.includes(dayKey) : true
+  let startTime: string | undefined
+  let endTime: string | undefined
+  if (isSaturday && schedule?.saturday_start_time) {
+    startTime = schedule.saturday_start_time
+    endTime = schedule.saturday_end_time
+  } else {
+    startTime = schedule?.start_time
+    endTime = schedule?.end_time
+  }
+  return { isWorkingDay, isSaturday, startTime, endTime }
+}
 
 function getStatusBadge(status?: string) {
   switch (status) {
@@ -219,6 +237,9 @@ export default function AttendancePage() {
     return map
   }, [monthData])
 
+  const schedule = user?.employee?.schedule
+  const todaySchedule = getTodaySchedule(schedule)
+
   if (todayLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -252,6 +273,82 @@ export default function AttendancePage() {
           </Button>
         </div>
       </div>
+
+      {/* Jadwal Hari Ini */}
+      <Card>
+        {schedule ? (
+          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <div className={`p-2.5 rounded-xl ring-1 ${todaySchedule.isWorkingDay ? 'bg-sky-50 ring-sky-500/10' : 'bg-gray-100 ring-gray-200'}`}>
+                <CalendarDays size={18} className={todaySchedule.isWorkingDay ? 'text-sky-600' : 'text-gray-400'} />
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-400 uppercase font-medium tracking-wider">Jadwal Hari Ini</p>
+                <p className="text-sm font-semibold text-gray-900">{schedule.name}</p>
+              </div>
+              {todaySchedule.isWorkingDay ? (
+                <Badge variant="success">Hari Kerja</Badge>
+              ) : (
+                <Badge>Hari Libur</Badge>
+              )}
+            </div>
+
+            <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-gray-50/80">
+                <Clock size={14} className="text-sky-500 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[9px] text-gray-400 uppercase font-medium tracking-wider">{todaySchedule.isSaturday && schedule.saturday_start_time ? 'Jam Kerja Sabtu' : 'Jam Masuk'}</p>
+                  <p className="text-[13px] font-semibold text-gray-800 font-mono">{todaySchedule.startTime || '-'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-gray-50/80">
+                <Clock size={14} className="text-orange-500 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[9px] text-gray-400 uppercase font-medium tracking-wider">Jam Pulang</p>
+                  <p className="text-[13px] font-semibold text-gray-800 font-mono">{todaySchedule.endTime || '-'}</p>
+                </div>
+              </div>
+              {(schedule.break_start && schedule.break_end) && (
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-gray-50/80 col-span-2 sm:col-span-1">
+                  <Coffee size={14} className="text-purple-500 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[9px] text-gray-400 uppercase font-medium tracking-wider">Istirahat</p>
+                    <p className="text-[13px] font-semibold text-gray-800 font-mono">{schedule.break_start} — {schedule.break_end}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col sm:flex-row lg:flex-col xl:flex-row items-start sm:items-center lg:items-start xl:items-center gap-2 lg:gap-3 flex-shrink-0">
+              {schedule.tolerance_minutes ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded-md">
+                  <AlertTriangle size={11} /> Toleransi {schedule.tolerance_minutes} menit
+                </span>
+              ) : null}
+              <div className="flex gap-1">
+                {DAY_NAMES.map((day, i) => {
+                  const active = schedule.working_days?.includes(DAY_KEYS[i])
+                  return (
+                    <span key={day} className={`text-[10px] font-semibold w-7 text-center py-1 rounded-md ${active ? 'bg-sky-100 text-sky-700' : 'bg-gray-100 text-gray-400 line-through'}`}>
+                      {day}
+                    </span>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-gray-100 ring-1 ring-gray-200">
+              <CalendarDays size={18} className="text-gray-400" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-700">Belum ada jadwal kerja terdaftar</p>
+              <p className="text-xs text-gray-400 mt-0.5">Hubungi administrator untuk pengaturan jadwal jam kerja Anda</p>
+            </div>
+          </div>
+        )}
+      </Card>
 
       {/* Month Navigation */}
       <Card>

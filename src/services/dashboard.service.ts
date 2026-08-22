@@ -27,7 +27,7 @@ interface ScheduleInfo {
   break_start?: string
   break_end?: string
   tolerance_minutes?: number
-  working_days?: number[]
+  working_days?: Array<number | string>
   presensi_start?: string
   presensi_deadline?: string
 }

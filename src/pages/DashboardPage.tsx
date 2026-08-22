@@ -646,7 +646,9 @@ export default function DashboardPage() {
                   <p className="text-[10px] text-gray-400 uppercase font-medium tracking-wider mb-2">Hari Kerja</p>
                   <div className="flex gap-1.5 flex-wrap">
                     {['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map((day, i) => {
-                      const active = stats.schedule!.working_days!.includes(i)
+                      const dayKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+                      const wd = stats.schedule!.working_days!
+                      const active = wd.includes(i) || wd.includes(dayKeys[i])
                       return (
                         <span key={i} className={`text-[11px] font-medium px-2 py-0.5 rounded-md ${active ? 'bg-sky-100 text-sky-700' : 'bg-gray-100 text-gray-400 line-through'}`}>
                           {day}
