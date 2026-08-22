@@ -12,8 +12,16 @@ export function useLogin() {
     mutationFn: ({ email, password, remember_me }: { email: string; password: string; remember_me: boolean }) =>
       authService.login(email, password, remember_me),
     onSuccess: (data) => {
+      const accessToken = data?.token?.access_token
+      const refreshToken = data?.token?.refresh_token
+
+      if (!accessToken || typeof accessToken !== 'string' || accessToken.split('.').length !== 3) {
+        toast.error('Respons login tidak valid. Silakan coba lagi.')
+        return
+      }
+
       queryClient.clear()
-      setAuth(data.user, data.token.access_token, data.token.refresh_token, data.remember_me)
+      setAuth(data.user, accessToken, refreshToken ?? accessToken, data.remember_me ?? true)
       const defaultRoute = ['Administrator', 'Pimpinan'].includes(data.user.role?.name) ? '/dashboard' : '/attendance'
       toast.success(`Login berhasil! Selamat datang, ${data.user.name}`, {
         description: `Role: ${data.user.role?.name || '-'}`,
@@ -22,7 +30,7 @@ export function useLogin() {
       if ('Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission()
       }
-      setTimeout(() => navigate(defaultRoute, { replace: true }), 600)
+      navigate(defaultRoute, { replace: true })
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Login gagal')

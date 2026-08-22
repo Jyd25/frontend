@@ -44,7 +44,9 @@ export default function MainLayout() {
   const { data: profileData, isError: profileError } = useProfile()
 
   useEffect(() => {
-    if (profileError) {
+    if (!profileError) return
+    const status = (profileError as any)?.response?.status
+    if (status === 401 || status === 403) {
       clearAuth()
       navigate('/login', { replace: true })
     }
