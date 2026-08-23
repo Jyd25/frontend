@@ -46,8 +46,23 @@ async function exportToPDF(data: ExportData) {
 
   let yOffset = 35
 
+  const blockHeaderHeight = 30
+  const rowHeight = 4.6
+
   for (const emp of data.items) {
-    if (yOffset > pageHeight - 40) {
+    const rowsCount = emp.records.length || 1
+    const estimatedBlockHeight = blockHeaderHeight + rowsCount * rowHeight
+    const usableHeight = pageHeight - margin * 2
+    const fitsOnOnePage = estimatedBlockHeight <= usableHeight
+
+    // Keep each employee block intact: header, summary and table start on the
+    // same page. Only split when a single block genuinely exceeds one page.
+    if (fitsOnOnePage && yOffset + estimatedBlockHeight > pageHeight - margin) {
+      addPageNumber(pageNum)
+      doc.addPage()
+      pageNum++
+      yOffset = 15
+    } else if (!fitsOnOnePage && yOffset > pageHeight - margin - blockHeaderHeight) {
       addPageNumber(pageNum)
       doc.addPage()
       pageNum++
@@ -92,6 +107,8 @@ async function exportToPDF(data: ExportData) {
       head: [['No', 'Tanggal', 'Masuk', 'Pulang', 'Status', 'Status Pulang', 'Alamat Masuk', 'Alamat Pulang', 'Face', 'Keterangan']],
       body: rows,
       theme: 'grid',
+      showHead: 'everyPage',
+      pageBreak: fitsOnOnePage ? 'avoid' : 'auto',
       headStyles: { fillColor: [14, 165, 233], textColor: 255, fontStyle: 'bold', fontSize: 7 },
       bodyStyles: { fontSize: 7 },
       columnStyles: {
