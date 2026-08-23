@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Download, FileText, Table } from 'lucide-react'
+import { useQuery, useMutation } from '@tanstack/react-query'
+import { Download, FileText, Table, Mail } from 'lucide-react'
 import { toast } from 'sonner'
 import { exportService, type ExportData } from '@/services/leave-correction.service'
 import { departmentService } from '@/services/department.service'
@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
+import Modal from '@/components/ui/Modal'
 
 async function exportToPDF(data: ExportData) {
   const [{ default: jsPDF }, autoTable] = await Promise.all([
@@ -148,11 +149,30 @@ export default function ExportPage() {
   const [deptId, setDeptId] = useState('')
   const [result, setResult] = useState<ExportData | null>(null)
   const [fetchLoading, setFetchLoading] = useState(false)
+  const [emailModalOpen, setEmailModalOpen] = useState(false)
+  const [emailFormat, setEmailFormat] = useState<'pdf' | 'excel'>('pdf')
 
   const { data: depts } = useQuery({
     queryKey: ['departments-select'],
     queryFn: () => departmentService.getAll({ per_page: 100 }),
     staleTime: 60000,
+  })
+
+  const emailMutation = useMutation({
+    mutationFn: () =>
+      exportService.emailAttendance({
+        start_date: startDate,
+        end_date: endDate,
+        department_id: deptId ? Number(deptId) : undefined,
+        format: emailFormat,
+      }),
+    onSuccess: (res) => {
+      toast.success(res.message)
+      setEmailModalOpen(false)
+    },
+    onError: (e: any) => {
+      toast.error(e?.response?.data?.message || 'Gagal mengirim email laporan')
+    },
   })
 
   const fetchData = async () => {
@@ -221,6 +241,9 @@ export default function ExportPage() {
             <Button onClick={handleExportExcel} disabled={!result} variant="outline">
               <Download size={14} className="mr-1" /> Excel
             </Button>
+            <Button onClick={() => setEmailModalOpen(true)} disabled={!startDate || !endDate} variant="outline" className="whitespace-nowrap">
+              <Mail size={14} className="mr-1" /> Kirim Email
+            </Button>
           </div>
         </div>
       </Card>
@@ -250,6 +273,37 @@ export default function ExportPage() {
           </Button>
         </div>
       </Card>
+
+      {/* Kirim Email Modal */}
+      <Modal open={emailModalOpen} onClose={() => setEmailModalOpen(false)} title="Kirim Laporan via Email">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600 leading-relaxed">
+            Laporan kehadiran periode <span className="font-semibold text-gray-900">{startDate} s/d {endDate}</span> akan dikirim
+            sebagai lampiran ke email <span className="font-semibold text-gray-900">semua user aktif</span>.
+          </p>
+          <div className="space-y-1">
+            <label className="text-[11px] uppercase tracking-wider font-medium text-gray-500">Format Lampiran</label>
+            <div className="flex gap-2">
+              {(['pdf', 'excel'] as const).map((f) => (
+                <button key={f} type="button" onClick={() => setEmailFormat(f)}
+                  className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                    emailFormat === f
+                      ? 'border-sky-400 bg-sky-50 text-sky-700 ring-2 ring-sky-500/20'
+                      : 'border-gray-200/80 text-gray-600 hover:bg-gray-50'
+                  }`}>
+                  {f === 'pdf' ? 'PDF' : 'Excel (.xlsx)'}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end pt-1">
+            <Button variant="ghost" onClick={() => setEmailModalOpen(false)}>Batal</Button>
+            <Button onClick={() => emailMutation.mutate()} loading={emailMutation.isPending}>
+              <Mail size={14} className="mr-1" /> Kirim Sekarang
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {result && (
         <Card title={`Preview: ${result.title} (${result.period})`}>

@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Clock, MapPin, Camera, ChevronLeft, ChevronRight, AlertTriangle, Send, X, Pencil, Save, CalendarDays, Coffee } from 'lucide-react'
+import { Clock, MapPin, Camera, ChevronLeft, ChevronRight, AlertTriangle, Send, X, Pencil, Save, CalendarDays, Coffee, CalendarOff } from 'lucide-react'
 import { attendanceService } from '@/services/attendance.service'
 import { correctionService } from '@/services/leave-correction.service'
+import { holidayService } from '@/services/holiday.service'
 import { invalidateAttendanceQueries } from '@/lib/queryInvalidation'
 import { useAuthStore } from '@/stores/useAuthStore'
 import PresensiModal from '@/components/attendance/PresensiModal'
@@ -43,6 +44,7 @@ function getStatusBadge(status?: string) {
     case 'Alpha': return <Badge variant="danger">Alpha</Badge>
     case 'Izin': return <Badge variant="info">Izin</Badge>
     case 'Sakit': return <Badge variant="warning">Sakit</Badge>
+    case 'Libur': return <Badge variant="info">Libur</Badge>
     default: return <Badge>{status || '-'}</Badge>
   }
 }
@@ -108,6 +110,28 @@ export default function AttendancePage() {
       }),
     staleTime: 10000,
   })
+
+  const { data: holidayToday } = useQuery({
+    queryKey: ['holiday-today'],
+    queryFn: holidayService.getToday,
+    staleTime: 3600000,
+  })
+
+  const { data: monthHolidays } = useQuery({
+    queryKey: ['holidays-month', selectedMonth, selectedYear],
+    queryFn: () => holidayService.getAll({ month: selectedMonth, year: selectedYear }),
+    staleTime: 60000,
+  })
+
+  const isTodayHoliday = !!holidayToday?.is_non_working_day
+
+  const holidayMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const h of monthHolidays || []) {
+      if (h.date) map[h.date] = h.name
+    }
+    return map
+  }, [monthHolidays])
 
   const createCorrection = useMutation({
     mutationFn: correctionService.create,
@@ -193,6 +217,13 @@ export default function AttendancePage() {
     return `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
   }
 
+  function dayOffName(day: number): string | null {
+    const byHoliday = holidayMap[formatDateKey(day)]
+    if (byHoliday) return byHoliday
+    if (new Date(selectedYear, selectedMonth - 1, day).getDay() === 0) return 'Hari Minggu'
+    return null
+  }
+
   function openCorrection(day: number, type: 'check_in' | 'check_out') {
     setCorrectionDate(formatDateKey(day))
     setCorrectionType(type)
@@ -268,8 +299,8 @@ export default function AttendancePage() {
               </p>
             </div>
           </div>
-          <Button onClick={() => setShowPresensiModal(true)}>
-            <Camera size={16} className="mr-2" /> Presensi Sekarang
+          <Button onClick={() => setShowPresensiModal(true)} disabled={isTodayHoliday} title={isTodayHoliday ? `Hari libur (${holidayToday?.name}) — presensi tidak diperlukan` : undefined}>
+            <Camera size={16} className="mr-2" /> {isTodayHoliday ? 'Hari Libur' : 'Presensi Sekarang'}
           </Button>
         </div>
       </div>
@@ -350,6 +381,24 @@ export default function AttendancePage() {
         )}
       </Card>
 
+      {/* Banner Hari Libur */}
+      {isTodayHoliday && (
+        <Card>
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-teal-50 ring-1 ring-teal-500/10">
+              <CalendarOff size={18} className="text-teal-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-900">Hari Ini Libur — {holidayToday?.name}</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Presensi check-in dan check-out tidak diperlukan. Status kehadiran hari ini otomatis terisi <span className="font-medium text-teal-600">Libur</span>.
+              </p>
+            </div>
+            <Badge variant="info">Libur</Badge>
+          </div>
+        </Card>
+      )}
+
       {/* Month Navigation */}
       <Card>
         <div className="flex items-center justify-between">
@@ -379,6 +428,8 @@ export default function AttendancePage() {
             const dayGroup = !isStaff ? dayAttendanceMap[dateKey] : undefined
             const hasData = isStaff ? !!attendance : !!dayGroup && dayGroup.length > 0
             const todayMark = isToday(day)
+            const offName = dayOffName(day)
+            const isLiburCell = attendance?.attendance_status === 'Libur'
 
             return (
               <div key={day} className={`bg-white min-h-[100px] sm:min-h-[120px] p-2 flex flex-col ${todayMark ? 'ring-2 ring-inset ring-sky-400/40' : ''}`}>
@@ -394,6 +445,7 @@ export default function AttendancePage() {
                           : attendance.attendance_status === 'Terlambat' || attendance.attendance_status === 'Late' ? '#f59e0b'
                           : attendance.attendance_status === 'Izin' || attendance.attendance_status === 'Permission' ? '#3b82f6'
                           : attendance.attendance_status === 'Sakit' || attendance.attendance_status === 'Leave' ? '#f59e0b'
+                          : attendance.attendance_status === 'Libur' ? '#14b8a6'
                           : '#ef4444'
                       }} />
                     )}
@@ -404,7 +456,12 @@ export default function AttendancePage() {
                 </div>
 
                 {isStaff ? (
-                  attendance ? (
+                  isLiburCell || (offName && !attendance) ? (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center gap-0.5 px-1">
+                      <span className="text-[10px] font-semibold text-teal-500">Libur</span>
+                      {offName && <span className="text-[8px] text-teal-400 leading-tight line-clamp-2">{offName}</span>}
+                    </div>
+                  ) : attendance ? (
                     <div className="flex-1 space-y-1">
                       {/* Face photo thumbnails */}
                       <div className="flex items-center gap-1">
@@ -526,6 +583,7 @@ export default function AttendancePage() {
               </thead>
               <tbody>
                 {(monthData?.data?.items || []).map((item: Attendance) => {
+                  const isLiburRow = item.attendance_status === 'Libur'
                   const dateStr = item.check_in_time
                     ? new Date(item.check_in_time).toLocaleDateString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
                     : item.check_out_time
@@ -555,16 +613,22 @@ export default function AttendancePage() {
                       <td className="px-3 py-3 text-sm text-gray-700 whitespace-nowrap">{dateStr}</td>
                       <td className="px-3 py-3 text-center">
                         <div className="flex justify-center">
-                          <FaceThumbnail
-                            src={item.checkin_photo_data || item.photo_data}
-                            faceStatus={item.face_status}
-                            faceScore={item.face_score}
-                          />
+                          {isLiburRow ? (
+                            <span className="inline-flex items-center justify-center w-14 h-14 rounded-lg bg-teal-50 text-[9px] text-teal-500 font-medium">Libur</span>
+                          ) : (
+                            <FaceThumbnail
+                              src={item.checkin_photo_data || item.photo_data}
+                              faceStatus={item.face_status}
+                              faceScore={item.face_score}
+                            />
+                          )}
                         </div>
                       </td>
                       <td className="px-3 py-3 text-center">
                         <div className="flex justify-center">
-                          {item.checkout_photo_data ? (
+                          {isLiburRow ? (
+                            <span className="inline-flex items-center justify-center w-14 h-14 rounded-lg bg-teal-50 text-[9px] text-teal-500 font-medium">Libur</span>
+                          ) : item.checkout_photo_data ? (
                             <FaceThumbnail
                               src={item.checkout_photo_data}
                               faceStatus={item.face_status}
@@ -580,7 +644,9 @@ export default function AttendancePage() {
                         </div>
                       </td>
                       <td className="px-3 py-3">
-                        {item.check_in_time ? (
+                        {isLiburRow ? (
+                          <span className="text-sm text-gray-300">—</span>
+                        ) : item.check_in_time ? (
                           <span className="text-sm font-medium text-gray-700">{formatTime(item.check_in_time)}</span>
                         ) : (
                           <div className="flex items-center gap-1">
@@ -601,7 +667,9 @@ export default function AttendancePage() {
                         )}
                       </td>
                       <td className="px-3 py-3">
-                        {item.check_out_time ? (
+                        {isLiburRow ? (
+                          <span className="text-sm text-gray-300">—</span>
+                        ) : item.check_out_time ? (
                           <span className="text-sm font-medium text-gray-700">{formatTime(item.check_out_time)}</span>
                         ) : (
                           <div className="flex items-center gap-1">

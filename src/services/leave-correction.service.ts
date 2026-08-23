@@ -103,4 +103,15 @@ export const exportService = {
     const { data } = await api.get<ApiResponse<ExportData>>('/export/attendance', { params })
     return data.data
   },
+  emailAttendance: async (params: {
+    start_date: string
+    end_date: string
+    department_id?: number
+    format: 'pdf' | 'excel'
+  }) => {
+    const { data } = await api.post<
+      ApiResponse<{ queued_count: number; period: string; format: string }>
+    >('/export/attendance/email', params)
+    return data
+  },
 }

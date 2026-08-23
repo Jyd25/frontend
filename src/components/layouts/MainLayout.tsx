@@ -1,7 +1,7 @@
 import { Outlet, Navigate, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useLogout, useProfile } from '@/hooks/useAuth'
-import { LogOut, LayoutDashboard, Users, Building2, Briefcase, Clock, MapPin, CalendarCheck, Bell, Menu, X, UserCog, FileText, AlertTriangle, Download, Camera, AlertCircle } from 'lucide-react'
+import { LogOut, LayoutDashboard, Users, Building2, Briefcase, Clock, MapPin, CalendarCheck, Bell, Menu, X, UserCog, FileText, AlertTriangle, Download, Camera, AlertCircle, CalendarOff } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
@@ -27,6 +27,7 @@ const sidebarItems: SidebarItem[] = [
   { label: 'Departemen', icon: Building2, href: '/departments', roles: ['Administrator'] },
   { label: 'Jabatan', icon: Briefcase, href: '/positions', roles: ['Administrator'] },
   { label: 'Jadwal', icon: Clock, href: '/schedules', roles: ['Administrator'] },
+  { label: 'Hari Libur', icon: CalendarOff, href: '/holidays', roles: ['Administrator'] },
   { label: 'Lokasi', icon: MapPin, href: '/locations', roles: ['Administrator'] },
   { divider: true, label: ' LAINNYA', roles: ['Administrator', 'Pimpinan', 'Guru', 'Karyawan'] },
   { label: 'Riwayat', icon: CalendarCheck, href: '/history', roles: ['Administrator', 'Pimpinan', 'Guru', 'Karyawan'] },
@@ -70,6 +71,15 @@ export default function MainLayout() {
     staleTime: 60000,
   })
 
+  const { data: holidayToday } = useQuery({
+    queryKey: ['holiday-today'],
+    queryFn: async () => {
+      const { data } = await api.get('/holidays/today')
+      return data.data
+    },
+    staleTime: 3600000,
+  })
+
   const prevProfileRef = useRef<string | null>(null)
   useEffect(() => {
     if (!profileData) return
@@ -86,6 +96,7 @@ export default function MainLayout() {
   }, [profileData, setUser, user])
 
   useEffect(() => {
+    if (holidayToday?.is_non_working_day) return
     if (todayAttendance === null && !sessionStorage.getItem('absen_popup_shown')) {
       const timer = setTimeout(() => {
         setShowAbsenPopup(true)
@@ -93,7 +104,7 @@ export default function MainLayout() {
       }, 1500)
       return () => clearTimeout(timer)
     }
-  }, [todayAttendance])
+  }, [todayAttendance, holidayToday])
 
   if (!isAuthenticated) return <Navigate to="/login" replace />
   if (!user) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-2 border-sky-200 border-t-teal-600 rounded-full" /></div>

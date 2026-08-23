@@ -14,6 +14,7 @@ const DepartmentListPage = lazy(() => import('./pages/departments/DepartmentList
 const PositionListPage = lazy(() => import('./pages/positions/PositionListPage'))
 const ScheduleListPage = lazy(() => import('./pages/schedules/ScheduleListPage'))
 const LocationListPage = lazy(() => import('./pages/locations/LocationListPage'))
+const HolidayListPage = lazy(() => import('./pages/holidays/HolidayListPage'))
 const AttendancePage = lazy(() => import('./pages/attendance/AttendancePage'))
 const AttendanceListPage = lazy(() => import('./pages/attendance/AttendanceListPage'))
 const HistoryPage = lazy(() => import('./pages/history/HistoryPage'))
@@ -58,6 +59,7 @@ export default function App() {
           <Route path="/departments" element={<DepartmentListPage />} />
           <Route path="/positions" element={<PositionListPage />} />
           <Route path="/schedules" element={<ScheduleListPage />} />
+          <Route path="/holidays" element={<HolidayListPage />} />
           <Route path="/locations" element={<LocationListPage />} />
           <Route path="/attendance" element={<AttendancePage />} />
           <Route path="/attendances" element={<AttendanceListPage />} />

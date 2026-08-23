@@ -36,6 +36,8 @@ function getStatusBadge(status?: string) {
       return <Badge variant="info">Izin</Badge>
     case 'Sakit':
       return <Badge variant="warning">Sakit</Badge>
+    case 'Libur':
+      return <Badge variant="info">Libur</Badge>
     default:
       return <Badge>{status || '-'}</Badge>
   }
@@ -119,6 +121,7 @@ const columns = [
       key: 'check_in_time',
       header: 'Jam Masuk',
       render: (item: Attendance) => {
+        if (item.attendance_status === 'Libur') return <span className="text-gray-300">—</span>
         if (!item.check_in_time) return '-'
         return formatTime(item.check_in_time)
       },
@@ -127,6 +130,7 @@ const columns = [
       key: 'check_out_time',
       header: 'Jam Pulang',
       render: (item: Attendance) => {
+        if (item.attendance_status === 'Libur') return <span className="text-gray-300">—</span>
         if (!item.check_out_time) return '-'
         return formatTime(item.check_out_time)
       },
