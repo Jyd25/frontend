@@ -6,6 +6,7 @@ import { correctionService, type AttendanceCorrection } from '@/services/leave-c
 import { formatTime, formatDate } from '@/lib/utils'
 import { invalidateAttendanceQueries } from '@/lib/queryInvalidation'
 import { useAuthStore } from '@/stores/useAuthStore'
+import MyMonthlyAttendance, { type RecapRow } from '@/components/attendance/MyMonthlyAttendance'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Card from '@/components/ui/Card'
@@ -39,6 +40,7 @@ export default function CorrectionPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['corrections'] })
       invalidateAttendanceQueries(queryClient)
+      queryClient.invalidateQueries({ queryKey: ['my-attendance-recap'] })
       toast.success('Pengajuan perbaikan berhasil dikirim')
       setShowForm(false)
       setForm({ date: '', check_in_time: '', check_out_time: '', reason: '' })
@@ -52,6 +54,7 @@ export default function CorrectionPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['corrections'] })
       invalidateAttendanceQueries(queryClient)
+      queryClient.invalidateQueries({ queryKey: ['my-attendance-recap'] })
       toast.success('Perbaikan disetujui')
       setApproveModal({ open: false, id: null, item: null })
       setApproveData({ note: '', check_in_time: '', check_out_time: '' })
@@ -64,11 +67,29 @@ export default function CorrectionPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['corrections'] })
       invalidateAttendanceQueries(queryClient)
+      queryClient.invalidateQueries({ queryKey: ['my-attendance-recap'] })
       toast.success('Perbaikan ditolak')
       setRejectModal({ open: false, id: null })
       setRejectNote('')
     },
   })
+
+  const openCorrectionForm = (row: RecapRow) => {
+    setForm({ date: row.date, check_in_time: '', check_out_time: '', reason: '' })
+    setShowForm(true)
+  }
+
+  const renderCorrectionAction = (row: RecapRow) => {
+    if (row.isSunday || row.status === 'Libur') {
+      return <span className="text-xs text-gray-300">-</span>
+    }
+    return (
+      <Button size="sm" variant={row.noRecord || row.incomplete ? 'primary' : 'outline'}
+        onClick={() => openCorrectionForm(row)}>
+        Perbaiki
+      </Button>
+    )
+  }
 
   const corrections = data?.data?.items || []
   const totalPages = data?.data?.pagination?.last_page || 1
@@ -85,6 +106,10 @@ export default function CorrectionPage() {
       </div>
 
       <Card>
+        <MyMonthlyAttendance renderAction={renderCorrectionAction} />
+      </Card>
+
+      <Card title={isAdmin ? 'Daftar Pengajuan Perbaikan' : 'Pengajuan Saya'}>
         <div className="flex flex-wrap gap-2 mb-4">
           {['', 'pending', 'approved', 'rejected'].map((s) => (
             <Button key={s} variant={statusFilter === s ? 'primary' : 'outline'} size="sm"

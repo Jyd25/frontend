@@ -6,6 +6,7 @@ import { leaveService, type LeaveRequest } from '@/services/leave-correction.ser
 import { formatDate } from '@/lib/utils'
 import { invalidateAttendanceQueries } from '@/lib/queryInvalidation'
 import { useAuthStore } from '@/stores/useAuthStore'
+import MyMonthlyAttendance, { type RecapRow } from '@/components/attendance/MyMonthlyAttendance'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Card from '@/components/ui/Card'
@@ -47,6 +48,23 @@ export default function LeavePage() {
     },
     onError: (e: any) => toast.error(e.response?.data?.message || 'Gagal mengajukan izin'),
   })
+
+  const openLeaveForm = (row: RecapRow) => {
+    setForm({ type: 'permission', start_date: row.date, end_date: row.date, reason: '' })
+    setShowForm(true)
+  }
+
+  const renderLeaveAction = (row: RecapRow) => {
+    const today = new Date().toISOString().slice(0, 10)
+    if (row.record || row.isSunday || row.date < today) {
+      return <span className="text-xs text-gray-300">-</span>
+    }
+    return (
+      <Button size="sm" onClick={() => openLeaveForm(row)}>
+        Ajukan Izin
+      </Button>
+    )
+  }
 
   const approveMutation = useMutation({
     mutationFn: ({ id, note }: { id: number; note?: string }) => leaveService.approve(id, note),
@@ -92,6 +110,10 @@ export default function LeavePage() {
       </div>
 
       <Card>
+        <MyMonthlyAttendance renderAction={renderLeaveAction} />
+      </Card>
+
+      <Card title={isAdmin ? 'Daftar Pengajuan Izin' : 'Pengajuan Saya'}>
         <div className="flex flex-wrap gap-2 mb-4">
           {['', 'pending', 'approved', 'rejected'].map((s) => (
             <Button key={s} variant={statusFilter === s ? 'primary' : 'outline'} size="sm"
