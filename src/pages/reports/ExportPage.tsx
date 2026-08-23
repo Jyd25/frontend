@@ -11,10 +11,12 @@ import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
 
 async function exportToPDF(data: ExportData) {
-  const [{ default: jsPDF }, autoTable] = await Promise.all([
+  const [{ default: jsPDF }, { autoTable }] = await Promise.all([
     import('jspdf'),
     import('jspdf-autotable'),
   ])
+
+  type AutoTableOptions = Parameters<typeof autoTable>[1]
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
   const pageWidth = doc.internal.pageSize.getWidth()
@@ -85,7 +87,7 @@ async function exportToPDF(data: ExportData) {
       r.remarks || '-',
     ])
 
-    ;(doc as any).autoTable({
+    autoTable(doc, {
       startY: yOffset,
       head: [['No', 'Tanggal', 'Masuk', 'Pulang', 'Status', 'Status Pulang', 'Alamat Masuk', 'Alamat Pulang', 'Face', 'Keterangan']],
       body: rows,
@@ -108,7 +110,7 @@ async function exportToPDF(data: ExportData) {
       didDrawPage: () => {
         addPageNumber(pageNum)
       },
-    })
+    } satisfies AutoTableOptions)
 
     yOffset = (doc as any).lastAutoTable.finalY + 10
   }
@@ -116,9 +118,7 @@ async function exportToPDF(data: ExportData) {
   if (pageNum === 1) addPageNumber(1)
 
   doc.save(`laporan-kehadiran-${data.period.replace(/\s/g, '')}.pdf`)
-}
-
-async function exportToExcel(data: ExportData) {
+}async function exportToExcel(data: ExportData) {
   const XLSX = await import('xlsx')
 
   const wb = XLSX.utils.book_new()
@@ -198,8 +198,9 @@ export default function ExportPage() {
     if (!result) return
     try {
       await exportToPDF(result)
-    } catch {
-      toast.error('Gagal mencetak PDF. Coba refresh halaman.')
+    } catch (e) {
+      console.error('PDF export failed:', e)
+      toast.error(`Gagal mencetak PDF: ${e instanceof Error ? e.message : 'coba refresh halaman'}`)
     }
   }
 
@@ -208,8 +209,9 @@ export default function ExportPage() {
     if (!result) return
     try {
       await exportToExcel(result)
-    } catch {
-      toast.error('Gagal mengexport Excel. Coba refresh halaman.')
+    } catch (e) {
+      console.error('Excel export failed:', e)
+      toast.error(`Gagal mengexport Excel: ${e instanceof Error ? e.message : 'coba refresh halaman'}`)
     }
   }
 
