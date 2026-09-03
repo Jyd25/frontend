@@ -11,7 +11,7 @@ export function useLogin() {
   return useMutation({
     mutationFn: ({ email, password, remember_me }: { email: string; password: string; remember_me: boolean }) =>
       authService.login(email, password, remember_me),
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       const accessToken = data?.token?.access_token
       const refreshToken = data?.token?.refresh_token
 
@@ -21,7 +21,7 @@ export function useLogin() {
       }
 
       queryClient.clear()
-      setAuth(data.user, accessToken, refreshToken ?? accessToken, data.remember_me ?? true)
+      setAuth(data.user, accessToken, refreshToken ?? accessToken, variables.remember_me)
       const defaultRoute = ['Administrator', 'Pimpinan'].includes(data.user.role?.name) ? '/dashboard' : '/attendance'
       toast.success(`Login berhasil! Selamat datang, ${data.user.name}`, {
         description: `Role: ${data.user.role?.name || '-'}`,

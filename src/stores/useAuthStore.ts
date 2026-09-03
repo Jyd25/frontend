@@ -20,11 +20,28 @@ function getRefreshToken(): string | null {
   return localStorage.getItem('refresh_token') || sessionStorage.getItem('refresh_token')
 }
 
+function getCommit(): 'local' | 'session' | null {
+  if (localStorage.getItem('access_token')) return 'local'
+  if (sessionStorage.getItem('access_token')) return 'session'
+  return null
+}
+
 function loadUser(): User | null {
   try {
-    const cached = sessionStorage.getItem('user_profile')
+    const cached = localStorage.getItem('user_profile') || sessionStorage.getItem('user_profile')
     return cached ? JSON.parse(cached) : null
   } catch { return null }
+}
+
+function persistUser(user: User, commit: 'local' | 'session') {
+  const key = 'user_profile'
+  if (commit === 'local') {
+    localStorage.setItem(key, JSON.stringify(user))
+    sessionStorage.removeItem(key)
+  } else {
+    sessionStorage.setItem(key, JSON.stringify(user))
+    localStorage.removeItem(key)
+  }
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -33,26 +50,39 @@ export const useAuthStore = create<AuthState>((set) => ({
   refreshToken: getRefreshToken(),
   isAuthenticated: !!getToken(),
   setAuth: (user, token, refreshToken, remember = true) => {
-    const store = remember ? localStorage : sessionStorage
+    const commit: 'local' | 'session' = remember ? 'local' : 'session'
+    const store = commit === 'local' ? localStorage : sessionStorage
+
+    if (remember) localStorage.setItem('remember_me', '1')
+    else {
+      localStorage.removeItem('remember_me')
+      localStorage.removeItem('access_token')
+      localStorage.removeItem('refresh_token')
+    }
+
     store.setItem('access_token', token)
     store.setItem('refresh_token', refreshToken)
-    sessionStorage.setItem('user_profile', JSON.stringify(user))
+    persistUser(user, commit)
     set({ user, token, refreshToken, isAuthenticated: true })
   },
   setUser: (user) => {
-    sessionStorage.setItem('user_profile', JSON.stringify(user))
+    const commit = getCommit() ?? 'session'
+    persistUser(user, commit)
     set({ user })
   },
   logout: () => {
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
+    localStorage.removeItem('user_profile')
+    localStorage.removeItem('remember_me')
     sessionStorage.removeItem('access_token')
     sessionStorage.removeItem('refresh_token')
-    sessionStorage.clear()
+    sessionStorage.removeItem('user_profile')
     set({ user: null, token: null, refreshToken: null, isAuthenticated: false })
   },
   updateUser: (user) => {
-    sessionStorage.setItem('user_profile', JSON.stringify(user))
+    const commit = getCommit() ?? 'session'
+    persistUser(user, commit)
     set({ user })
   },
 }))
