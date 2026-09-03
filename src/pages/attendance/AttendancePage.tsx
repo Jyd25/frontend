@@ -114,16 +114,20 @@ function DayRow({ item, isAdmin, onEdit, onCorrection, canCorrect }: { item: Att
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 px-3 pb-3">
         <div className="space-y-0.5">
           <p className="text-[10px] uppercase tracking-wider text-gray-400 font-medium flex items-center gap-1"><MapPin size={10} className="text-emerald-500" /> Alamat Check In</p>
-          <LocationThumbnail
-            userLat={item.latitude}
-            userLng={item.longitude}
-            centerLat={item.location?.latitude}
-            centerLng={item.location?.longitude}
-            radius={item.location?.radius}
-            locationName={item.location?.location_name}
-            distance={item.distance}
-            address={item.address}
-          />
+          {item.check_in_time ? (
+            <LocationThumbnail
+              userLat={item.latitude}
+              userLng={item.longitude}
+              centerLat={item.location?.latitude}
+              centerLng={item.location?.longitude}
+              radius={item.location?.radius}
+              locationName={item.location?.location_name}
+              distance={item.distance}
+              address={item.address}
+            />
+          ) : (
+            <span className="text-xs text-gray-300">-</span>
+          )}
         </div>
         <div className="space-y-0.5">
           <p className="text-[10px] uppercase tracking-wider text-gray-400 font-medium flex items-center gap-1"><MapPin size={10} className="text-orange-400" /> Alamat Check Out</p>
