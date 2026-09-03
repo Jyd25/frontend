@@ -80,9 +80,6 @@ export default function CorrectionPage() {
   }
 
   const renderCorrectionAction = (row: RecapRow) => {
-    if (row.isSunday || row.status === 'Libur') {
-      return <span className="text-xs text-gray-300">-</span>
-    }
     return (
       <Button size="sm" variant={row.noRecord || row.incomplete ? 'primary' : 'outline'}
         onClick={() => openCorrectionForm(row)}>

@@ -12,7 +12,7 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
 import FaceThumbnail from '@/components/ui/FaceThumbnail'
-import { cn, formatTime } from '@/lib/utils'
+import { formatTime } from '@/lib/utils'
 
 const DAY_NAMES = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
 const MONTH_NAMES = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
@@ -60,7 +60,6 @@ export interface RecapRow {
   dateLabel: string
   dayLabel: string
   dayOfWeek: number
-  isSunday: boolean
   record?: Attendance
   status?: string
   noRecord: boolean
@@ -267,7 +266,10 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
   )
 
   if (isAdminView) {
-    const items = adminQuery.data?.data?.items || []
+    const items = (adminQuery.data?.data?.items || []).filter((a: Attendance) => {
+      const d = new Date(a.check_in_time || a.check_out_time || a.created_at)
+      return d.getDay() !== 0 && a.attendance_status !== 'Libur'
+    })
     const totalPages = adminQuery.data?.data?.pagination?.last_page || 1
 
     const columns = [
@@ -347,23 +349,24 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
     const items = selfQuery.data?.data?.items || []
     const date = `${year}-${pad(month)}-${pad(i + 1)}`
     const dow = new Date(date).getDay()
+    if (dow === 0) return null
     const recs = items.filter(
       (a: Attendance) => a.check_in_time?.slice(0, 10) === date || a.check_out_time?.slice(0, 10) === date
     )
     const record = recs.find((r: Attendance) => r.attendance_status !== 'Libur') || recs[0]
+    if (record?.attendance_status === 'Libur') return null
     const status = record?.attendance_status
     return {
       date,
       dayLabel: `${i + 1} ${MONTH_NAMES[month - 1]?.slice(0, 3)} ${year}`,
       dateLabel: `${i + 1} ${MONTH_NAMES[month - 1]?.slice(0, 3)}`,
       dayOfWeek: dow,
-      isSunday: dow === 0,
       record,
       status,
       noRecord: !record,
-      incomplete: !!record && (!record.check_in_time || !record.check_out_time) && status !== 'Libur',
+      incomplete: !!record && (!record.check_in_time || !record.check_out_time),
     }
-  })
+  }).filter(Boolean) as RecapRow[]
 
   const selfDetail = detailColumnsFor((r: RecapRow) => r.record, false)
 
@@ -373,7 +376,7 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
       key: 'day_name',
       header: 'Hari',
       render: (r: RecapRow) => (
-        <span className={cn('text-xs', r.isSunday ? 'text-teal-600 font-semibold' : 'text-gray-500')}>{DAY_NAMES[r.dayOfWeek]}</span>
+        <span className="text-xs text-gray-500">{DAY_NAMES[r.dayOfWeek]}</span>
       ),
     },
     ...selfDetail.slice(1),

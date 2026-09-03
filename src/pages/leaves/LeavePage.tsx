@@ -56,7 +56,7 @@ export default function LeavePage() {
 
   const renderLeaveAction = (row: RecapRow) => {
     const today = new Date().toISOString().slice(0, 10)
-    if (row.record || row.isSunday || row.date < today) {
+    if (row.record || row.date < today) {
       return <span className="text-xs text-gray-300">-</span>
     }
     return (
