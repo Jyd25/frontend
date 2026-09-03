@@ -631,8 +631,8 @@ export default function AttendancePage() {
                           ) : item.checkout_photo_data ? (
                             <FaceThumbnail
                               src={item.checkout_photo_data}
-                              faceStatus={item.face_status}
-                              faceScore={item.face_score}
+                              faceStatus={item.checkout_face_status}
+                              faceScore={item.checkout_face_score}
                             />
                           ) : item.check_in_time && !item.check_out_time ? (
                             <span className="inline-flex items-center justify-center w-14 h-14 rounded-lg border border-dashed border-amber-300 bg-amber-50 text-[9px] text-amber-500 font-medium text-center px-1">

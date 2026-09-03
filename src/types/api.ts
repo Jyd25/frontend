@@ -115,6 +115,12 @@ export interface Attendance {
   latitude?: number
   longitude?: number
   distance?: number
+  checkout_latitude?: number
+  checkout_longitude?: number
+  checkout_distance?: number
+  checkout_face_status?: string
+  checkout_face_score?: number
+  checkout_location_status?: string
   face_score?: number
   face_status?: string
   location_status?: string

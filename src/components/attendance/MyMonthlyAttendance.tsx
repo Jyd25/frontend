@@ -180,7 +180,7 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
       render: (r: any) => {
         const a = recordOf(r)
         if (a?.checkout_photo_data) {
-          return <FaceThumbnail src={a.checkout_photo_data} faceStatus={a.face_status} faceScore={a.face_score} />
+          return <FaceThumbnail src={a.checkout_photo_data} faceStatus={a.checkout_face_status} faceScore={a.checkout_face_score} />
         }
         if (a?.check_in_time && !a.check_out_time) {
           return <span className="inline-flex items-center justify-center w-14 h-14 rounded-lg border border-dashed border-amber-300 bg-amber-50 text-[9px] text-amber-500 font-medium text-center px-1">Belum Check Out</span>
@@ -235,7 +235,18 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
       render: (r: any) => {
         const a = recordOf(r)
         if (!a) return <span className="text-xs text-gray-400">-</span>
-        return (
+        return a.checkout_latitude != null && a.checkout_longitude != null ? (
+          <LocationThumbnail
+            userLat={a.checkout_latitude}
+            userLng={a.checkout_longitude}
+            centerLat={a.location?.latitude}
+            centerLng={a.location?.longitude}
+            radius={a.location?.radius}
+            locationName={a.location?.location_name}
+            distance={a.checkout_distance ?? a.distance}
+            address={a.checkout_address || a.address}
+          />
+        ) : (
           <span className="inline-flex items-center gap-1 text-xs text-gray-600" title={a.checkout_address || ''}>
             <MapPin size={12} className="text-gray-300" />
             <span className="max-w-[160px] truncate">{a.checkout_address || '-'}</span>

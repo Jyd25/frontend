@@ -183,12 +183,28 @@ const columns = [
     {
       key: 'checkout_address',
       header: 'Alamat Pulang',
-      render: (item: Attendance) => (
-        <span className="inline-flex items-center gap-1 text-xs text-gray-600" title={item.checkout_address || ''}>
-          <MapPin size={12} className="text-gray-300" />
-          <span className="max-w-[160px] truncate">{item.checkout_address || '-'}</span>
-        </span>
-      ),
+      render: (item: Attendance) => {
+        if (item.checkout_latitude != null && item.checkout_longitude != null) {
+          return (
+            <LocationThumbnail
+              userLat={item.checkout_latitude}
+              userLng={item.checkout_longitude}
+              centerLat={item.location?.latitude}
+              centerLng={item.location?.longitude}
+              radius={item.location?.radius}
+              locationName={item.location?.location_name}
+              distance={item.checkout_distance ?? item.distance}
+              address={item.checkout_address || item.address}
+            />
+          )
+        }
+        return (
+          <span className="inline-flex items-center gap-1 text-xs text-gray-600" title={item.checkout_address || ''}>
+            <MapPin size={12} className="text-gray-300" />
+            <span className="max-w-[160px] truncate">{item.checkout_address || '-'}</span>
+          </span>
+        )
+      },
     },
     {
       key: 'checkin_photo',
@@ -209,8 +225,8 @@ const columns = [
           return (
             <FaceThumbnail
               src={item.checkout_photo_data}
-              faceStatus={item.face_status}
-              faceScore={item.face_score}
+              faceStatus={item.checkout_face_status}
+              faceScore={item.checkout_face_score}
             />
           )
         }
