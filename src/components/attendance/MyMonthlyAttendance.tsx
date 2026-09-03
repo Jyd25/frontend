@@ -141,7 +141,7 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
           header: 'Karyawan',
           render: (r: any) => {
             const a = recordOf(r)
-            const ph = a?.employee?.photo || a?.checkin_photo_data || a?.photo_data
+            const ph = a?.employee?.photo
             return (
               <div className="flex items-center gap-2">
                 {ph ? (
@@ -166,8 +166,8 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
       header: 'Check In',
       render: (r: any) => {
         const a = recordOf(r)
-        return a ? (
-          <FaceThumbnail src={a.checkin_photo_data || a.photo_data} faceStatus={a.face_status} faceScore={a.face_score} />
+        return a?.checkin_photo_data ? (
+          <FaceThumbnail src={a.checkin_photo_data} faceStatus={a.face_status} faceScore={a.face_score} />
         ) : (
           <FaceThumbnail src={null} label="No Image" />
         )
@@ -178,11 +178,10 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
       header: 'Check Out',
       render: (r: any) => {
         const a = recordOf(r)
-        if (!a) return <FaceThumbnail src={null} label="No Image" />
-        if (a.checkout_photo_data) {
+        if (a?.checkout_photo_data) {
           return <FaceThumbnail src={a.checkout_photo_data} faceStatus={a.face_status} faceScore={a.face_score} />
         }
-        if (a.check_in_time && !a.check_out_time) {
+        if (a?.check_in_time && !a.check_out_time) {
           return <span className="inline-flex items-center justify-center w-14 h-14 rounded-lg border border-dashed border-amber-300 bg-amber-50 text-[9px] text-amber-500 font-medium text-center px-1">Belum Check Out</span>
         }
         return <FaceThumbnail src={null} label="No Image" />

@@ -589,7 +589,7 @@ export default function AttendancePage() {
                     : item.check_out_time
                       ? new Date(item.check_out_time).toLocaleDateString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
                       : '-'
-                  const avatarPhoto = item.employee?.photo || item.checkin_photo_data || item.photo_data
+                  const avatarPhoto = item.employee?.photo
 
                   return (
                     <tr key={item.id} className="border-b border-gray-200/80 last:border-0 hover:bg-gray-50/50">

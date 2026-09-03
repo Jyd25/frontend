@@ -45,7 +45,7 @@ export default function FaceThumbnail({ src, faceStatus, faceScore, size = 'sm',
           </div>
         )}
       </button>
-      <ImagePreview open={previewOpen} onClose={() => setPreviewOpen(false)} src={src} alt="Preview Wajah" />
+      <ImagePreview open={previewOpen} onClose={() => setPreviewOpen(false)} src={src} alt="Preview Wajah" faceStatus={faceStatus} faceScore={faceScore} />
     </>
   )
 }

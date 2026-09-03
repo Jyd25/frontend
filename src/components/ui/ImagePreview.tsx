@@ -6,9 +6,11 @@ interface ImagePreviewProps {
   onClose: () => void
   src: string | null
   alt?: string
+  faceStatus?: string
+  faceScore?: number
 }
 
-export default function ImagePreview({ open, onClose, src, alt = 'Preview' }: ImagePreviewProps) {
+export default function ImagePreview({ open, onClose, src, alt = 'Preview', faceStatus, faceScore }: ImagePreviewProps) {
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') onClose()
   }, [onClose])
@@ -26,6 +28,8 @@ export default function ImagePreview({ open, onClose, src, alt = 'Preview' }: Im
 
   if (!open || !src) return null
 
+  const isMatched = faceStatus === 'Matched' || faceStatus === 'matched'
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" />
@@ -39,8 +43,23 @@ export default function ImagePreview({ open, onClose, src, alt = 'Preview' }: Im
         <img
           src={src}
           alt={alt}
-          className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+          className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl"
         />
+        {(faceStatus || faceScore != null) && (
+          <div className="mt-3 flex items-center justify-center gap-4">
+            {faceStatus && (
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${isMatched ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                <span className={`w-2 h-2 rounded-full ${isMatched ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                {isMatched ? 'Terverifikasi' : 'Tidak Cocok'}
+              </span>
+            )}
+            {faceScore != null && (
+              <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${isMatched ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                Skor: {faceScore}%
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

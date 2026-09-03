@@ -91,7 +91,7 @@ const columns = [
       key: 'employee_name',
       header: 'Karyawan',
       render: (item: Attendance) => {
-        const photo = item.employee?.photo || item.checkin_photo_data || item.photo_data
+        const photo = item.employee?.photo
         return (
           <div className="flex items-center gap-2">
             {photo ? (
@@ -186,7 +186,7 @@ const columns = [
       header: 'Check In',
       render: (item: Attendance) => (
         <FaceThumbnail
-          src={item.checkin_photo_data || item.photo_data}
+          src={item.checkin_photo_data}
           faceStatus={item.face_status}
           faceScore={item.face_score}
         />
