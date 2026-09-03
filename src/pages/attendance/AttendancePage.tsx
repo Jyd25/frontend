@@ -616,12 +616,14 @@ export default function AttendancePage() {
                         <div className="flex justify-center">
                           {isLiburRow ? (
                             <span className="inline-flex items-center justify-center w-14 h-14 rounded-lg bg-teal-50 text-[9px] text-teal-500 font-medium">Libur</span>
-                          ) : (
+                          ) : item.check_in_time ? (
                             <FaceThumbnail
-                              src={item.checkin_photo_data || item.photo_data}
+                              src={item.checkin_photo_data}
                               faceStatus={item.face_status}
                               faceScore={item.face_score}
                             />
+                          ) : (
+                            <FaceThumbnail src={null} label="No Image" />
                           )}
                         </div>
                       </td>
