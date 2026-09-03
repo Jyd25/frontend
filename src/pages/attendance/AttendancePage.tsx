@@ -14,6 +14,7 @@ import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
 import { formatTime } from '@/lib/utils'
 import FaceThumbnail from '@/components/ui/FaceThumbnail'
+import LocationThumbnail from '@/components/ui/LocationThumbnail'
 import type { Attendance } from '@/types/api'
 
 const MONTH_NAMES = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
@@ -690,30 +691,35 @@ export default function AttendancePage() {
                         )}
                       </td>
                       <td className="px-3 py-3">
-                        <div className="flex items-start gap-1.5">
-                          <MapPin size={12} className="text-emerald-500 mt-0.5 flex-shrink-0" />
-                          <div className="min-w-0">
-                            {item.address ? (
-                              <p className="text-xs text-gray-700 leading-relaxed">{item.address}</p>
-                            ) : item.location?.location_name ? (
-                              <p className="text-xs text-gray-700">{item.location.location_name}</p>
-                            ) : (
-                              <span className="text-xs text-gray-300">-</span>
-                            )}
-                          </div>
-                        </div>
+                        <LocationThumbnail
+                          userLat={item.latitude}
+                          userLng={item.longitude}
+                          centerLat={item.location?.latitude}
+                          centerLng={item.location?.longitude}
+                          radius={item.location?.radius}
+                          locationName={item.location?.location_name}
+                          distance={item.distance}
+                          address={item.address}
+                        />
                       </td>
                       <td className="px-3 py-3">
-                        <div className="flex items-start gap-1.5">
-                          <MapPin size={12} className="text-orange-400 mt-0.5 flex-shrink-0" />
-                          <div className="min-w-0">
-                            {item.checkout_address ? (
-                              <p className="text-xs text-gray-700 leading-relaxed">{item.checkout_address}</p>
-                            ) : (
-                              <span className="text-xs text-gray-300">-</span>
-                            )}
-                          </div>
-                        </div>
+                        {item.checkout_latitude != null && item.checkout_longitude != null ? (
+                          <LocationThumbnail
+                            userLat={item.checkout_latitude}
+                            userLng={item.checkout_longitude}
+                            centerLat={item.location?.latitude}
+                            centerLng={item.location?.longitude}
+                            radius={item.location?.radius}
+                            locationName={item.location?.location_name}
+                            distance={item.checkout_distance ?? item.distance}
+                            address={item.checkout_address || item.address}
+                          />
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs text-gray-600" title={item.checkout_address || ''}>
+                            <MapPin size={12} className="text-orange-400 flex-shrink-0" />
+                            <span className="max-w-[160px] truncate">{item.checkout_address || '-'}</span>
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-3 text-center">{getStatusBadge(item.attendance_status)}</td>
                       <td className="px-3 py-3 text-center">{getCheckoutBadge(item.status_checkout)}</td>
