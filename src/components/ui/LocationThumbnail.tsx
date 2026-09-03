@@ -35,7 +35,7 @@ export default function LocationThumbnail({
   const mapInstanceRef = useRef<L.Map | null>(null)
   const [open, setOpen] = useState(false)
 
-  const hasCoords = userLat != null && userLng != null && centerLat != null && centerLng != null
+  const hasCoords = userLat != null && userLng != null
 
   useEffect(() => {
     if (!open || !mapRef.current || mapInstanceRef.current || !hasCoords) return
@@ -57,36 +57,44 @@ export default function LocationThumbnail({
       .bindPopup(`<b>Lokasi Verifikasi</b><br/>${Number(userLat).toFixed(6)}, ${Number(userLng).toFixed(6)}`)
       .openPopup()
 
-    if (radius != null && radius > 0) {
-      L.circle([centerLat!, centerLng!], {
-        radius,
-        color: '#0ea5e9',
-        fillColor: '#0ea5e9',
-        fillOpacity: 0.08,
-        weight: 2,
-        dashArray: '6 4',
-      }).addTo(map).bindPopup(`<b>${locationName || 'Lokasi'}</b><br/>Radius: ${radius}m`)
+    if (centerLat != null && centerLng != null) {
+      if (radius != null && radius > 0) {
+        L.circle([centerLat, centerLng], {
+          radius,
+          color: '#0ea5e9',
+          fillColor: '#0ea5e9',
+          fillOpacity: 0.08,
+          weight: 2,
+          dashArray: '6 4',
+        }).addTo(map).bindPopup(`<b>${locationName || 'Lokasi'}</b><br/>Radius: ${radius}m`)
+      }
+
+      const centerIcon = L.divIcon({
+        className: '',
+        html: `<div style="width:13px;height:13px;background:#10b981;border:2px solid white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>`,
+        iconSize: [13, 13],
+        iconAnchor: [7, 7],
+      })
+      L.marker([centerLat, centerLng], { icon: centerIcon }).addTo(map)
+
+      if (distance != null) {
+        L.polyline([[userLat!, userLng!], [centerLat, centerLng]], {
+          color: '#ef4444',
+          weight: 2,
+          dashArray: '8 6',
+        }).addTo(map)
+      }
+
+      const bounds = L.latLngBounds([[userLat!, userLng!], [centerLat, centerLng]]).pad(0.3)
+      map.fitBounds(bounds)
+      mapInstanceRef.current = map
+      return () => {
+        map.remove()
+        mapInstanceRef.current = null
+      }
     }
 
-    const centerIcon = L.divIcon({
-      className: '',
-      html: `<div style="width:13px;height:13px;background:#10b981;border:2px solid white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>`,
-      iconSize: [13, 13],
-      iconAnchor: [7, 7],
-    })
-    L.marker([centerLat!, centerLng!], { icon: centerIcon }).addTo(map)
-
-    if (distance != null) {
-      L.polyline([[userLat!, userLng!], [centerLat!, centerLng!]], {
-        color: '#ef4444',
-        weight: 2,
-        dashArray: '8 6',
-      }).addTo(map)
-    }
-
-    const bounds = L.latLngBounds([[userLat!, userLng!], [centerLat!, centerLng!]]).pad(0.3)
-    map.fitBounds(bounds)
-
+    map.setView([userLat!, userLng!], 15)
     mapInstanceRef.current = map
 
     return () => {

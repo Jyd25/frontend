@@ -131,20 +131,25 @@ function DayRow({ item, isAdmin, onEdit, onCorrection, canCorrect }: { item: Att
         </div>
         <div className="space-y-0.5">
           <p className="text-[10px] uppercase tracking-wider text-gray-400 font-medium flex items-center gap-1"><MapPin size={10} className="text-orange-400" /> Alamat Check Out</p>
-          {item.checkout_latitude != null && item.checkout_longitude != null ? (
-            <LocationThumbnail
-              userLat={item.checkout_latitude}
-              userLng={item.checkout_longitude}
-              centerLat={item.location?.latitude}
-              centerLng={item.location?.longitude}
-              radius={item.location?.radius}
-              locationName={item.location?.location_name}
-              distance={item.checkout_distance ?? item.distance}
-              address={item.checkout_address || item.address}
-            />
-          ) : (
-            <span className="text-xs text-gray-500">{item.checkout_address || '-'}</span>
-          )}
+          {(() => {
+            const coLat = item.checkout_latitude ?? (!item.check_in_time ? item.latitude : null)
+            const coLng = item.checkout_longitude ?? (!item.check_in_time ? item.longitude : null)
+            if (coLat != null && coLng != null) {
+              return (
+                <LocationThumbnail
+                  userLat={coLat}
+                  userLng={coLng}
+                  centerLat={item.location?.latitude}
+                  centerLng={item.location?.longitude}
+                  radius={item.location?.radius}
+                  locationName={item.location?.location_name}
+                  distance={item.checkout_distance ?? item.distance}
+                  address={item.checkout_address || item.address}
+                />
+              )
+            }
+            return <span className="text-xs text-gray-500">{item.checkout_address || '-'}</span>
+          })()}
         </div>
       </div>
 
@@ -799,23 +804,30 @@ export default function AttendancePage() {
                         )}
                       </td>
                       <td className="px-3 py-3">
-                        {item.checkout_latitude != null && item.checkout_longitude != null ? (
-                          <LocationThumbnail
-                            userLat={item.checkout_latitude}
-                            userLng={item.checkout_longitude}
-                            centerLat={item.location?.latitude}
-                            centerLng={item.location?.longitude}
-                            radius={item.location?.radius}
-                            locationName={item.location?.location_name}
-                            distance={item.checkout_distance ?? item.distance}
-                            address={item.checkout_address || item.address}
-                          />
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-xs text-gray-600" title={item.checkout_address || ''}>
-                            <MapPin size={12} className="text-orange-400 flex-shrink-0" />
-                            <span className="max-w-[160px] truncate">{item.checkout_address || '-'}</span>
-                          </span>
-                        )}
+                        {(() => {
+                          const coLat = item.checkout_latitude ?? (!item.check_in_time ? item.latitude : null)
+                          const coLng = item.checkout_longitude ?? (!item.check_in_time ? item.longitude : null)
+                          if (coLat != null && coLng != null) {
+                            return (
+                              <LocationThumbnail
+                                userLat={coLat}
+                                userLng={coLng}
+                                centerLat={item.location?.latitude}
+                                centerLng={item.location?.longitude}
+                                radius={item.location?.radius}
+                                locationName={item.location?.location_name}
+                                distance={item.checkout_distance ?? item.distance}
+                                address={item.checkout_address || item.address}
+                              />
+                            )
+                          }
+                          return (
+                            <span className="inline-flex items-center gap-1 text-xs text-gray-600" title={item.checkout_address || ''}>
+                              <MapPin size={12} className="text-orange-400 flex-shrink-0" />
+                              <span className="max-w-[160px] truncate">{item.checkout_address || '-'}</span>
+                            </span>
+                          )
+                        })()}
                       </td>
                       <td className="px-3 py-3 text-center">{getStatusBadge(item.attendance_status)}</td>
                       <td className="px-3 py-3 text-center">{getCheckoutBadge(item.status_checkout)}</td>
