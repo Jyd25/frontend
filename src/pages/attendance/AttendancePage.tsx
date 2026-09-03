@@ -70,6 +70,129 @@ function getStatusColor(status?: string) {
   }
 }
 
+function DayRow({ item, isAdmin, onEdit, onCorrection, canCorrect }: { item: Attendance; isAdmin: boolean; onEdit: (a: Attendance) => void; onCorrection?: (type: 'check_in' | 'check_out') => void; canCorrect?: boolean }) {
+  const isLibur = item.attendance_status === 'Libur'
+  return (
+    <div className="rounded-xl border border-gray-200/80 bg-gray-50/50 overflow-hidden">
+      <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-gray-200/80 bg-white">
+        <div>
+          {item.employee?.name && <p className="text-sm font-semibold text-gray-900">{item.employee.name}</p>}
+          <p className="text-[11px] text-gray-400">{item.employee?.nik || 'Karyawan'}</p>
+        </div>
+        <div className="flex items-center gap-2">{getStatusBadge(item.attendance_status)}</div>
+      </div>
+
+      {isLibur ? (
+        <div className="px-3 py-3 text-sm text-teal-600 flex items-center gap-2">
+          <CalendarOff size={14} /> Hari libur
+        </div>
+      ) : (
+        <div className="px-3 py-3 grid grid-cols-2 gap-3">
+          <div>
+            <FaceThumbnail src={item.checkin_photo_data} faceStatus={item.face_status} faceScore={item.face_score} />
+          </div>
+          <div>
+            {item.checkout_photo_data ? (
+              <FaceThumbnail src={item.checkout_photo_data} faceStatus={item.checkout_face_status} faceScore={item.checkout_face_score} />
+            ) : item.check_in_time && !item.check_out_time ? (
+              <span className="inline-flex items-center justify-center w-14 h-14 rounded-lg border border-dashed border-amber-300 bg-amber-50 text-[9px] text-amber-500 font-medium text-center px-1">Belum Check Out</span>
+            ) : (
+              <FaceThumbnail src={null} label="No Image" />
+            )}
+          </div>
+          <div className="space-y-1">
+            <p className="text-[10px] uppercase tracking-wider text-gray-400 font-medium">Jam Masuk</p>
+            <p className="text-sm font-medium text-gray-800">{item.check_in_time ? formatTime(item.check_in_time) : <span className="text-amber-500">belum</span>}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-[10px] uppercase tracking-wider text-gray-400 font-medium">Jam Pulang</p>
+            <p className="text-sm font-medium text-gray-800">{item.check_out_time ? formatTime(item.check_out_time) : <span className="text-amber-500">belum</span>}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 px-3 pb-3">
+        <div className="space-y-0.5">
+          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-medium flex items-center gap-1"><MapPin size={10} className="text-emerald-500" /> Alamat Check In</p>
+          <LocationThumbnail
+            userLat={item.latitude}
+            userLng={item.longitude}
+            centerLat={item.location?.latitude}
+            centerLng={item.location?.longitude}
+            radius={item.location?.radius}
+            locationName={item.location?.location_name}
+            distance={item.distance}
+            address={item.address}
+          />
+        </div>
+        <div className="space-y-0.5">
+          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-medium flex items-center gap-1"><MapPin size={10} className="text-orange-400" /> Alamat Check Out</p>
+          {item.checkout_latitude != null && item.checkout_longitude != null ? (
+            <LocationThumbnail
+              userLat={item.checkout_latitude}
+              userLng={item.checkout_longitude}
+              centerLat={item.location?.latitude}
+              centerLng={item.location?.longitude}
+              radius={item.location?.radius}
+              locationName={item.location?.location_name}
+              distance={item.checkout_distance ?? item.distance}
+              address={item.checkout_address || item.address}
+            />
+          ) : (
+            <span className="text-xs text-gray-500">{item.checkout_address || '-'}</span>
+          )}
+        </div>
+      </div>
+
+      {!isLibur && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 px-3 pb-3">
+          {!item.check_in_time && (
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-gray-400 font-medium">Jam Masuk</p>
+                <p className="text-xs text-amber-600">Belum check-in</p>
+              </div>
+              {canCorrect && onCorrection && (
+                <Button size="sm" variant="outline" onClick={() => onCorrection('check_in')}>
+                  <Send size={11} className="mr-1" /> Perbaiki
+                </Button>
+              )}
+            </div>
+          )}
+          {!item.check_out_time && (
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-gray-400 font-medium">Jam Pulang</p>
+                <p className="text-xs text-amber-600">Belum check-out</p>
+              </div>
+              {canCorrect && onCorrection && (
+                <Button size="sm" variant="outline" onClick={() => onCorrection('check_out')}>
+                  <Send size={11} className="mr-1" /> Perbaiki
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {getCheckoutBadge(item.status_checkout) && (
+        <div className="px-3 pb-3">
+          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-medium mb-1">Status Pulang</p>
+          {getCheckoutBadge(item.status_checkout)}
+        </div>
+      )}
+
+      {isAdmin && !isLibur && (
+        <div className="px-3 pb-3 flex justify-end">
+          <Button size="sm" variant="outline" onClick={() => onEdit(item)}>
+            <Pencil size={13} className="mr-1" /> Edit
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function AttendancePage() {
   const queryClient = useQueryClient()
   const user = useAuthStore((s) => s.user)
@@ -94,6 +217,7 @@ export default function AttendancePage() {
   const [editItem, setEditItem] = useState<Attendance | null>(null)
   const [editCheckIn, setEditCheckIn] = useState('')
   const [editCheckOut, setEditCheckOut] = useState('')
+  const [dayDetail, setDayDetail] = useState<{ day: number; dateKey: string } | null>(null)
 
   const { data: todayAttendance, isLoading: todayLoading } = useQuery({
     queryKey: ['attendance-today'],
@@ -226,6 +350,7 @@ export default function AttendancePage() {
   }
 
   function openCorrection(day: number, type: 'check_in' | 'check_out') {
+    setDayDetail(null)
     setCorrectionDate(formatDateKey(day))
     setCorrectionType(type)
     setCorrectionReason('')
@@ -428,13 +553,18 @@ export default function AttendancePage() {
             const isLiburCell = attendance?.attendance_status === 'Libur'
 
             return (
-              <div key={day} className={`bg-white min-h-[100px] sm:min-h-[120px] p-2 flex flex-col ${todayMark ? 'ring-2 ring-inset ring-sky-400/40' : ''}`}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className={`text-xs font-semibold ${todayMark ? 'text-sky-600' : isPast(day) && !hasData ? 'text-gray-300' : 'text-gray-700'}`}>
+              <button
+                key={day}
+                onClick={() => hasData && setDayDetail({ day, dateKey })}
+                disabled={!hasData}
+                className={`text-left bg-white min-h-[80px] sm:min-h-[96px] p-1.5 sm:p-2 flex flex-col gap-1 ${todayMark ? 'ring-2 ring-inset ring-sky-400/40' : ''} ${hasData ? 'cursor-pointer hover:bg-sky-50/50 transition-colors' : 'cursor-default'}`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className={`text-[11px] sm:text-xs font-semibold ${todayMark ? 'text-sky-600' : isPast(day) && !hasData ? 'text-gray-300' : 'text-gray-700'}`}>
                     {day}
                   </span>
                   <div className="flex items-center gap-1">
-                    {todayMark && <span className="text-[9px] font-bold text-sky-500 bg-sky-50 px-1.5 py-0.5 rounded-full">HARI INI</span>}
+                    {todayMark && <span className="text-[8px] font-bold text-sky-500 bg-sky-50 px-1 py-0.5 rounded-full sm:text-[9px]">HARI INI</span>}
                     {attendance && (
                       <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{
                         backgroundColor: attendance.attendance_status === 'Hadir' || attendance.attendance_status === 'Present' ? '#22c55e'
@@ -446,108 +576,69 @@ export default function AttendancePage() {
                       }} />
                     )}
                     {dayGroup && dayGroup.length > 0 && (
-                      <span className="text-[9px] font-bold text-sky-600 bg-sky-50 px-1.5 py-0.5 rounded-full">{dayGroup.length} org</span>
+                      <span className="text-[8px] font-bold text-sky-600 bg-sky-50 px-1 py-0.5 rounded-full sm:text-[9px]">{dayGroup.length} org</span>
                     )}
                   </div>
                 </div>
 
                 {isStaff ? (
                   isLiburCell || (offName && !attendance) ? (
-                    <div className="flex-1 flex flex-col items-center justify-center text-center gap-0.5 px-1">
-                      <span className="text-[10px] font-semibold text-teal-500">Libur</span>
-                      {offName && <span className="text-[8px] text-teal-400 leading-tight line-clamp-2">{offName}</span>}
-                    </div>
+                    <span className="flex-1 flex items-center justify-center text-[10px] font-semibold text-teal-500">Libur</span>
                   ) : attendance ? (
-                    <div className="flex-1 space-y-1">
-                      {/* Face photo thumbnails */}
-                      <div className="flex items-center gap-1">
-                        {(attendance.checkin_photo_data || attendance.photo_data) && (
-                          <div className={`w-6 h-6 rounded-md overflow-hidden border flex-shrink-0 ${
-                            attendance.face_status === 'Matched' || attendance.face_status === 'matched' ? 'border-emerald-400' : 'border-amber-400'
-                          }`}>
-                            <img src={attendance.checkin_photo_data || attendance.photo_data} alt="" className="w-full h-full object-cover" />
-                          </div>
+                    <div className="flex-1 flex flex-col items-center justify-center gap-1.5">
+                      <div className="flex items-center">
+                        <span className="text-[9px] sm:text-[10px] font-medium text-gray-700">
+                          {attendance.check_in_time ? formatTime(attendance.check_in_time) : '—'}
+                        </span>
+                        <span className="mx-1 text-[8px] text-gray-300">•</span>
+                        <span className="text-[9px] sm:text-[10px] font-medium text-gray-700">
+                          {attendance.check_out_time ? formatTime(attendance.check_out_time) : '—'}
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        {attendance.checkin_photo_data ? (
+                          <img src={attendance.checkin_photo_data} alt="" className={`w-6 h-6 rounded-md object-cover border flex-shrink-0 ${attendance.face_status === 'Matched' || attendance.face_status === 'matched' ? 'border-emerald-400' : 'border-amber-400'}`} />
+                        ) : (
+                          <div className="w-6 h-6 rounded-md bg-gray-100 border border-dashed border-gray-200 flex-shrink-0" />
                         )}
-                        {attendance.checkout_photo_data && (
-                          <div className="w-6 h-6 rounded-md overflow-hidden border border-orange-400 flex-shrink-0">
-                            <img src={attendance.checkout_photo_data} alt="" className="w-full h-full object-cover" />
-                          </div>
+                        <span className="text-[8px] text-gray-300 mx-0.5">→</span>
+                        {attendance.checkout_photo_data ? (
+                          <img src={attendance.checkout_photo_data} alt="" className="w-6 h-6 rounded-md object-cover border border-orange-400 flex-shrink-0" />
+                        ) : (
+                          <div className="w-6 h-6 rounded-md bg-gray-100 border border-dashed border-gray-200 flex-shrink-0" />
                         )}
                       </div>
-
-                      {/* Times */}
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-1">
-                          <Clock size={9} className="text-sky-500 flex-shrink-0" />
-                          <span className={`text-[10px] ${attendance.check_in_time ? 'text-gray-700 font-medium' : 'text-amber-500'}`}>
-                            {attendance.check_in_time ? formatTime(attendance.check_in_time) : '—'}
-                          </span>
-                          {!attendance.check_in_time && isStaff && isPast(day) && (
-                            <button onClick={() => openCorrection(day, 'check_in')} className="text-[9px] text-sky-500 hover:text-sky-700 font-medium flex items-center gap-0.5 ml-auto" title="Ajukan perbaikan">
-                              <Send size={7} />
-                            </button>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock size={9} className="text-orange-500 flex-shrink-0" />
-                          <span className={`text-[10px] ${attendance.check_out_time ? 'text-gray-700 font-medium' : 'text-amber-500'}`}>
-                            {attendance.check_out_time ? formatTime(attendance.check_out_time) : '—'}
-                          </span>
-                          {!attendance.check_out_time && isStaff && isPast(day) && (
-                            <button onClick={() => openCorrection(day, 'check_out')} className="text-[9px] text-sky-500 hover:text-sky-700 font-medium flex items-center gap-0.5 ml-auto" title="Ajukan perbaikan">
-                              <Send size={7} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Location */}
-                      {(attendance.address || attendance.location?.location_name) && (
-                        <div className="flex items-center gap-0.5">
-                          <MapPin size={8} className="text-emerald-500 flex-shrink-0" />
-                          <span className="text-[9px] text-gray-500 truncate">{attendance.address || attendance.location?.location_name}</span>
-                        </div>
-                      )}
-
-                      {/* Status badge */}
-                      <div>{getStatusBadge(attendance.attendance_status)}</div>
                     </div>
                   ) : (
-                    <div className="flex-1 flex items-center justify-center">
+                    <span className="flex-1 flex items-center justify-center">
                       {isPast(day) ? (
                         <span className="text-[10px] text-red-300 font-medium">Alpha</span>
                       ) : todayMark ? (
                         <span className="text-[10px] text-gray-300">-</span>
                       ) : null}
-                    </div>
+                    </span>
                   )
                 ) : dayGroup && dayGroup.length > 0 ? (
-                  <div className="flex-1 space-y-1">
-                    {dayGroup.slice(0, 3).map((a) => (
-                      <div key={a.id} className="flex items-center gap-1 min-w-0">
-                        <div className="w-4 h-4 rounded-full overflow-hidden border border-gray-200 flex-shrink-0">
-                          {a.employee?.photo ? (
-                            <img src={a.employee.photo} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full gradient-primary flex items-center justify-center text-white text-[7px] font-bold">
-                              {a.employee?.name?.charAt(0)?.toUpperCase() || '?'}
-                            </div>
-                          )}
-                        </div>
-                        <span className="text-[9px] text-gray-600 truncate">{a.employee?.name?.split(' ')[0]}</span>
-                        <span className={`ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0 ${getStatusColor(a.attendance_status)}`} />
-                      </div>
-                    ))}
-                    {dayGroup.length > 3 && (
-                      <div className="text-[9px] text-gray-400 font-medium">+{dayGroup.length - 3} lainnya</div>
-                    )}
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="flex -space-x-1.5">
+                      {dayGroup.slice(0, 4).map((a) => (
+                        a.employee?.photo ? (
+                          <img key={a.id} src={a.employee.photo} alt="" className="w-6 h-6 rounded-full object-cover border-2 border-white flex-shrink-0" />
+                        ) : (
+                          <div key={a.id} className="w-6 h-6 rounded-full gradient-primary border-2 border-white flex items-center justify-center text-white text-[8px] font-bold flex-shrink-0">
+                            {a.employee?.name?.charAt(0)?.toUpperCase() || '?'}
+                          </div>
+                        )
+                      ))}
+                    </div>
+                    {dayGroup.length > 4 && <span className="text-[9px] text-gray-400 font-medium ml-1">+{dayGroup.length - 4}</span>}
                   </div>
                 ) : (
-                  <div className="flex-1 flex items-center justify-center">
+                  <span className="flex-1 flex items-center justify-center">
                     {todayMark ? <span className="text-[10px] text-gray-300">-</span> : null}
-                  </div>
+                  </span>
                 )}
-              </div>
+              </button>
             )
           })}
         </div>
@@ -741,6 +832,32 @@ export default function AttendancePage() {
           </div>
         )}
       </Card>
+
+      {/* Day Detail Modal */}
+      <Modal
+        open={!!dayDetail}
+        onClose={() => setDayDetail(null)}
+        title={dayDetail ? new Date(dayDetail.dateKey + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''}
+      >
+        {dayDetail && (
+          <div className="space-y-3 max-h-[70vh] overflow-y-auto">
+            {dayDetail.dateKey &&
+              (isStaff ? (
+                attendanceMap[dayDetail.dateKey] ? (
+                  <DayRow item={attendanceMap[dayDetail.dateKey]} isAdmin={isAdmin} onEdit={openEdit} onCorrection={(type) => openCorrection(dayDetail.day, type)} canCorrect={isPast(dayDetail.day)} />
+                ) : (
+                  <p className="text-center text-sm text-gray-400 py-4">Tidak ada data kehadiran pada tanggal ini</p>
+                )
+              ) : (dayAttendanceMap[dayDetail.dateKey] || []).length > 0 ? (
+                dayAttendanceMap[dayDetail.dateKey].map((item) => (
+                  <DayRow key={item.id} item={item} isAdmin={isAdmin} onEdit={openEdit} />
+                ))
+              ) : (
+                <p className="text-center text-sm text-gray-400 py-4">Tidak ada data kehadiran pada tanggal ini</p>
+              ))}
+          </div>
+        )}
+      </Modal>
 
       {/* Presensi Modal */}
       <PresensiModal
