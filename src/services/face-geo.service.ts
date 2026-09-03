@@ -44,9 +44,7 @@ export const faceService = {
       fd.append('descriptor', JSON.stringify(descriptor))
       fd.append('force', '1')
       fd.append('image', image)
-      const { data } = await api.post('/faces/register', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      const { data } = await api.post('/faces/register', fd)
       return data.data
     }
     const { data } = await api.post('/faces/register', {
@@ -100,9 +98,7 @@ export const faceUpdateRequestService = {
       const fd = new FormData()
       fd.append('descriptor', JSON.stringify(descriptor))
       fd.append('image', image)
-      const { data } = await api.post('/face-update-requests', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      const { data } = await api.post('/face-update-requests', fd)
       return data.data
     }
     const { data } = await api.post('/face-update-requests', { descriptor: JSON.stringify(descriptor) })

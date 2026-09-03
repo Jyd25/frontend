@@ -117,9 +117,7 @@ function ProfileEditTab({ employee }: { employee: any }) {
     mutationFn: async (file: File) => {
       const fd = new FormData()
       fd.append('photo', file)
-      const { data } = await api.put<ApiResponse<any>>('/profile', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      const { data } = await api.put<ApiResponse<any>>('/profile', fd)
       return data.data
     },
     onSuccess: (updatedUser) => {
@@ -318,9 +316,7 @@ function FaceTab({ employeeId, employeeName }: { employeeId: number; employeeNam
     mutationFn: async (file: File) => {
       const fd = new FormData()
       fd.append('photo', file)
-      const { data } = await api.put<ApiResponse<any>>('/profile', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      const { data } = await api.put<ApiResponse<any>>('/profile', fd)
       return data.data
     },
     onSuccess: (updatedUser) => {

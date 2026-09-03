@@ -19,16 +19,12 @@ export const employeeService = {
     return data.data
   },
   create: async (formData: FormData) => {
-    const { data } = await api.post<ApiResponse<Employee>>('/employees', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    const { data } = await api.post<ApiResponse<Employee>>('/employees', formData)
     return data.data
   },
   update: async (id: number, formData: FormData) => {
     formData.append('_method', 'PUT')
-    const { data } = await api.post<ApiResponse<Employee>>(`/employees/${id}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    const { data } = await api.post<ApiResponse<Employee>>(`/employees/${id}`, formData)
     return data.data
   },
   delete: async (id: number) => {
