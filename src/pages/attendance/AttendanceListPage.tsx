@@ -11,6 +11,7 @@ import Card from '@/components/ui/Card'
 import DataTable from '@/components/ui/DataTable'
 import Badge from '@/components/ui/Badge'
 import FaceThumbnail from '@/components/ui/FaceThumbnail'
+import LocationThumbnail from '@/components/ui/LocationThumbnail'
 import type { Attendance } from '@/types/api'
 
 function formatDateTime(iso?: string) {
@@ -167,17 +168,25 @@ const columns = [
       key: 'checkin_address',
       header: 'Alamat Masuk',
       render: (item: Attendance) => (
-        <span className="text-xs text-gray-600 max-w-[180px] truncate block" title={item.address || ''}>
-          {item.address || '-'}
-        </span>
+        <LocationThumbnail
+          userLat={item.latitude}
+          userLng={item.longitude}
+          centerLat={item.location?.latitude}
+          centerLng={item.location?.longitude}
+          radius={item.location?.radius}
+          locationName={item.location?.location_name}
+          distance={item.distance}
+          address={item.address}
+        />
       ),
     },
     {
       key: 'checkout_address',
       header: 'Alamat Pulang',
       render: (item: Attendance) => (
-        <span className="text-xs text-gray-600 max-w-[180px] truncate block" title={item.checkout_address || ''}>
-          {item.checkout_address || '-'}
+        <span className="inline-flex items-center gap-1 text-xs text-gray-600" title={item.checkout_address || ''}>
+          <MapPin size={12} className="text-gray-300" />
+          <span className="max-w-[160px] truncate">{item.checkout_address || '-'}</span>
         </span>
       ),
     },

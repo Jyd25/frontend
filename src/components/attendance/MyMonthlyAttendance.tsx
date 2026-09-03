@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Pencil } from 'lucide-react'
+import { Pencil, MapPin } from 'lucide-react'
 import { attendanceService } from '@/services/attendance.service'
 import type { Attendance } from '@/types/api'
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -12,6 +12,7 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Modal from '@/components/ui/Modal'
 import FaceThumbnail from '@/components/ui/FaceThumbnail'
+import LocationThumbnail from '@/components/ui/LocationThumbnail'
 import { formatTime } from '@/lib/utils'
 
 const DAY_NAMES = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
@@ -214,11 +215,18 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
       header: 'Alamat Check In',
       render: (r: any) => {
         const a = recordOf(r)
-        return (
-          <span className="text-xs text-gray-600 max-w-[160px] truncate block" title={a?.address || ''}>
-            {a?.address || '-'}
-          </span>
-        )
+        return a ? (
+          <LocationThumbnail
+            userLat={a.latitude}
+            userLng={a.longitude}
+            centerLat={a.location?.latitude}
+            centerLng={a.location?.longitude}
+            radius={a.location?.radius}
+            locationName={a.location?.location_name}
+            distance={a.distance}
+            address={a.address}
+          />
+        ) : <span className="text-xs text-gray-400">-</span>
       },
     },
     {
@@ -226,9 +234,11 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
       header: 'Alamat Check Out',
       render: (r: any) => {
         const a = recordOf(r)
+        if (!a) return <span className="text-xs text-gray-400">-</span>
         return (
-          <span className="text-xs text-gray-600 max-w-[160px] truncate block" title={a?.checkout_address || ''}>
-            {a?.checkout_address || '-'}
+          <span className="inline-flex items-center gap-1 text-xs text-gray-600" title={a.checkout_address || ''}>
+            <MapPin size={12} className="text-gray-300" />
+            <span className="max-w-[160px] truncate">{a.checkout_address || '-'}</span>
           </span>
         )
       },
