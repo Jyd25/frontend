@@ -167,18 +167,21 @@ const columns = [
     {
       key: 'checkin_address',
       header: 'Alamat Masuk',
-      render: (item: Attendance) => (
-        <LocationThumbnail
-          userLat={item.latitude}
-          userLng={item.longitude}
-          centerLat={item.location?.latitude}
-          centerLng={item.location?.longitude}
-          radius={item.location?.radius}
-          locationName={item.location?.location_name}
-          distance={item.distance}
-          address={item.address}
-        />
-      ),
+      render: (item: Attendance) => {
+        if (!item.check_in_time) return <span className="text-xs text-gray-300">-</span>
+        return (
+          <LocationThumbnail
+            userLat={item.latitude}
+            userLng={item.longitude}
+            centerLat={item.location?.latitude}
+            centerLng={item.location?.longitude}
+            radius={item.location?.radius}
+            locationName={item.location?.location_name}
+            distance={item.distance}
+            address={item.address}
+          />
+        )
+      },
     },
     {
       key: 'checkout_address',

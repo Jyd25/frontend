@@ -693,16 +693,20 @@ export default function AttendancePage() {
                         )}
                       </td>
                       <td className="px-3 py-3">
-                        <LocationThumbnail
-                          userLat={item.latitude}
-                          userLng={item.longitude}
-                          centerLat={item.location?.latitude}
-                          centerLng={item.location?.longitude}
-                          radius={item.location?.radius}
-                          locationName={item.location?.location_name}
-                          distance={item.distance}
-                          address={item.address}
-                        />
+                        {item.check_in_time ? (
+                          <LocationThumbnail
+                            userLat={item.latitude}
+                            userLng={item.longitude}
+                            centerLat={item.location?.latitude}
+                            centerLng={item.location?.longitude}
+                            radius={item.location?.radius}
+                            locationName={item.location?.location_name}
+                            distance={item.distance}
+                            address={item.address}
+                          />
+                        ) : (
+                          <span className="text-xs text-gray-300">-</span>
+                        )}
                       </td>
                       <td className="px-3 py-3">
                         {item.checkout_latitude != null && item.checkout_longitude != null ? (

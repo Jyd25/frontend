@@ -215,7 +215,7 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
       header: 'Alamat Check In',
       render: (r: any) => {
         const a = recordOf(r)
-        return a ? (
+        return a?.check_in_time ? (
           <LocationThumbnail
             userLat={a.latitude}
             userLng={a.longitude}
