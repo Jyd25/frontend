@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Clock, MapPin, Camera, ChevronLeft, ChevronRight, AlertTriangle, Send, X, Pencil, Save, CalendarDays, Coffee, CalendarOff } from 'lucide-react'
+import { Clock, MapPin, Camera, ChevronLeft, ChevronRight, Send, X, Pencil, Save, CalendarDays, Coffee, CalendarOff } from 'lucide-react'
 import { attendanceService } from '@/services/attendance.service'
 import { correctionService } from '@/services/leave-correction.service'
 import { holidayService } from '@/services/holiday.service'
@@ -352,11 +352,6 @@ export default function AttendancePage() {
             </div>
 
             <div className="flex flex-col sm:flex-row lg:flex-col xl:flex-row items-start sm:items-center lg:items-start xl:items-center gap-2 lg:gap-3 flex-shrink-0">
-              {schedule.tolerance_minutes ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded-md">
-                  <AlertTriangle size={11} /> Toleransi {schedule.tolerance_minutes} menit
-                </span>
-              ) : null}
               <div className="flex gap-1">
                 {DAY_NAMES.map((day, i) => {
                   const active = schedule.working_days?.includes(DAY_KEYS[i])

@@ -625,9 +625,6 @@ export default function DashboardPage() {
                   ...(stats?.schedule?.break_start && stats?.schedule?.break_end ? [
                     { icon: Clock, label: 'Jam Istirahat', value: `${formatTime(stats.schedule.break_start)} — ${formatTime(stats.schedule.break_end)} WIB`, color: 'bg-purple-50 text-purple-600' },
                   ] : []),
-                  ...(stats?.schedule?.tolerance_minutes ? [
-                    { icon: AlertTriangle, label: 'Toleransi Keterlambatan', value: `${stats.schedule.tolerance_minutes} menit`, color: 'bg-rose-50 text-rose-600' },
-                  ] : []),
                   { icon: MapPin, label: 'Lokasi', value: 'Jl. Rancamaya No.30, Bogor', color: 'bg-teal-50 text-teal-600' },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50/80 hover:bg-gray-50 transition-colors">
