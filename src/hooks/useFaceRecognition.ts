@@ -87,10 +87,10 @@ export function useFaceRecognition() {
       if (!video || video.readyState !== 4 || !detectingRef.current) return
 
       try {
-        const detection = await faceapi
-          .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 }))
-          .withFaceLandmarks()
-          .withFaceDescriptor()
+        const detection = await faceapi.detectSingleFace(
+          video,
+          new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.3 })
+        )
 
         if (canvasRef.current) {
           const canvas = canvasRef.current
@@ -109,7 +109,7 @@ export function useFaceRecognition() {
 
         if (detection) {
           setFaceDetected(true)
-          setFaceScore(detection.detection.score)
+          setFaceScore(detection.score)
         } else {
           setFaceDetected(false)
           setFaceScore(0)

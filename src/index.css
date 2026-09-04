@@ -37,6 +37,19 @@
 }
 
 @keyframes scan {
-  0%, 100% { top: 10%; }
-  50% { top: 90%; }
+  0% { transform: translateY(0); }
+  50% { transform: translateY(220px); }
+  100% { transform: translateY(0); }
+}
+
+.scan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 6%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(14, 165, 233, 0.8), transparent);
+  box-shadow: 0 0 8px rgba(14, 165, 233, 0.5);
+  animation: scan 2s ease-in-out infinite;
+  will-change: transform;
 }

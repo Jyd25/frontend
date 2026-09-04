@@ -507,7 +507,7 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
             )}
             {face.isReady && !face.faceDetected && !isProcessing && (
               <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                <div className="absolute left-0 right-0 h-0.5 bg-sky-400/60 animate-[scan_2s_ease-in-out_infinite]" />
+                <div className="scan-line" />
               </div>
             )}
           </div>
