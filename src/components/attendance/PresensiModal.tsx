@@ -81,10 +81,12 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
       invalidateAttendanceQueries(queryClient)
       toast.success('Check-in berhasil!')
       setStep('done')
+      setIsProcessing(false)
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Gagal check-in')
       setStep('idle')
+      setIsProcessing(false)
     },
   })
 
@@ -96,10 +98,12 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
       invalidateFaceQueries(queryClient)
       toast.success('Check-out berhasil!')
       setStep('done')
+      setIsProcessing(false)
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Gagal check-out')
       setStep('idle')
+      setIsProcessing(false)
     },
   })
 
@@ -107,51 +111,45 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
     loadModels().then((ok) => setModelsReady(ok))
   }, [])
 
-  const processGeo = useCallback(async (lat: number, lng: number, photoData?: string | null, faceRes?: { matched: boolean; score: number } | null) => {
+  const processGeo = useCallback(async (lat: number, lng: number): Promise<{ locationId: number | null; address: string | null }> => {
     setStep('submitting')
-    setIsProcessing(true)
+    const baseGeo = { inside: false, distance: null, locationName: null, locationId: null, latitude: null, longitude: null, address: null as string | null, locationLat: null, locationLng: null, radius: null, userLat: lat, userLng: lng }
+
     let locationId: number | null = null
-    let address: string | null = null
-    let locLat: number | null = null
-    let locLng: number | null = null
-    let locRadius: number | null = null
     try {
-      const [result, geoAddr] = await Promise.all([
-        geolocationService.validate(lat, lng),
-        reverseGeocode(lat, lng),
-      ])
+      const result = await geolocationService.validate(lat, lng)
       locationId = result.location_id ?? null
-      address = geoAddr
-      locLat = result.latitude
-      locLng = result.longitude
-      locRadius = result.radius
       setGeoResult({
+        ...baseGeo,
         inside: result.inside_radius,
         distance: result.distance,
         locationName: result.location_name,
         locationId,
         latitude: result.latitude,
         longitude: result.longitude,
-        address,
-        locationLat: locLat,
-        locationLng: locLng,
-        radius: locRadius,
-        userLat: lat,
-        userLng: lng,
+        locationLat: result.latitude,
+        locationLng: result.longitude,
+        radius: result.radius,
       })
     } catch {
-      try {
-        address = await reverseGeocode(lat, lng)
-      } catch {}
-      setGeoResult({ inside: false, distance: null, locationName: null, locationId: null, latitude: null, longitude: null, address, locationLat: null, locationLng: null, radius: null, userLat: lat, userLng: lng })
+      setGeoResult(baseGeo)
     }
 
+    reverseGeocode(lat, lng).then((addr) => {
+      if (addr) {
+        setGeoResult((prev) => (prev ? { ...prev, address: addr } : prev))
+      }
+    }).catch(() => {})
+
+    return { locationId, address: null }
+  }, [])
+
+  const submitAttendance = useCallback(async (lat: number, lng: number, locationId: number | null, address: string | null, photoData?: string | null, faceRes?: { matched: boolean; score: number } | null) => {
     const facePayload = {
       face_score: faceRes?.score,
       face_status: faceRes?.matched ? 'matched' : 'unmatched',
       photo_data: photoData || undefined,
     }
-
     if (actionType === 'check_in') {
       checkInMutation.mutate({
         latitude: lat,
@@ -169,7 +167,6 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
         address: address || undefined,
       })
     }
-    setIsProcessing(false)
   }, [actionType, checkInMutation, checkOutMutation])
 
   const doCaptureAndVerify = useCallback(async () => {
@@ -178,16 +175,18 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
     face.stopDetection()
 
     toast.info('Mengambil gambar wajah...')
-    const result = await face.captureFace()
-    if (!result.detected || !result.descriptor) {
+    const [captureResult, imageFile] = await Promise.all([
+      face.captureFace(),
+      face.captureImage(),
+    ])
+    if (!captureResult.detected || !captureResult.descriptor) {
       toast.error('Wajah tidak terdeteksi. Coba lagi.')
       face.startDetection()
       setIsProcessing(false)
       return
     }
+    const descriptor = captureResult.descriptor
 
-    toast.info('Menyimpan gambar wajah...')
-    const imageFile = await face.captureImage()
     let imageDataUri: string | null = null
     if (imageFile) {
       imageDataUri = await new Promise<string>((resolve) => {
@@ -198,44 +197,45 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
     }
     setCapturedFacePhoto(imageDataUri)
 
-    let currentFaceResult: { matched: boolean; score: number } | null = null
-    toast.info('Memverifikasi wajah...')
-    try {
-      const verifyResult = await faceService.verify(employeeId!, descriptorToArray(result.descriptor))
-      currentFaceResult = { matched: verifyResult.matched, score: verifyResult.score }
-      setFaceResult(currentFaceResult)
-
-      if ((verifyResult as any).no_face_data) {
-        toast.warning('Data wajah belum terdaftar. Verifikasi dilewati.', { duration: 6000 })
-      } else if (!verifyResult.matched) {
-        toast.warning(`Wajah tidak cocok (skor: ${verifyResult.score}%). Presensi tetap dilanjutkan.`, { duration: 5000 })
-      } else {
-        toast.success('Wajah cocok! Melanjutkan...')
-      }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal memverifikasi wajah')
-      currentFaceResult = { matched: false, score: 0 }
-      setFaceResult(currentFaceResult)
+    const coords = gpsCoordsRef.current
+    if (!coords) {
+      toast.error('Lokasi belum tersedia. Silakan coba lagi.')
+      face.startDetection()
+      setIsProcessing(false)
+      return
     }
 
-    toast.info('Mengirim data presensi...')
     face.stopCamera()
-    if (gpsCoordsRef.current) {
-      await processGeo(gpsCoordsRef.current.lat, gpsCoordsRef.current.lng, imageDataUri, currentFaceResult)
-    } else {
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          await processGeo(pos.coords.latitude, pos.coords.longitude, imageDataUri, currentFaceResult)
-        },
-        () => {
-          toast.error('Gagal mendapatkan lokasi. GPS aktif?')
-          setStep('idle')
-          setIsProcessing(false)
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      )
-    }
-  }, [employeeId, face, processGeo, isProcessing])
+    setStep('submitting')
+    toast.info('Memverifikasi wajah...')
+
+    const verifyPromise = (async (): Promise<{ matched: boolean; score: number }> => {
+      try {
+        const verifyResult = await faceService.verify(employeeId!, descriptorToArray(descriptor))
+        const res = { matched: verifyResult.matched, score: verifyResult.score }
+        setFaceResult(res)
+        if ((verifyResult as any).no_face_data) {
+          toast.warning('Data wajah belum terdaftar. Verifikasi dilewati.', { duration: 6000 })
+        } else if (!verifyResult.matched) {
+          toast.warning(`Wajah tidak cocok (skor: ${verifyResult.score}%). Presensi tetap dilanjutkan.`, { duration: 5000 })
+        } else {
+          toast.success('Wajah cocok! Melanjutkan...')
+        }
+        return res
+      } catch (err: any) {
+        toast.error(err.response?.data?.message || 'Gagal memverifikasi wajah')
+        const res = { matched: false, score: 0 }
+        setFaceResult(res)
+        return res
+      }
+    })()
+
+    const geoPromise = processGeo(coords.lat, coords.lng)
+
+    const [faceRes, geoRes] = await Promise.all([verifyPromise, geoPromise])
+    setFaceResult(faceRes)
+    await submitAttendance(coords.lat, coords.lng, geoRes.locationId, geoRes.address, imageDataUri, faceRes)
+  }, [employeeId, face, processGeo, submitAttendance, isProcessing])
 
   async function startAttendance(type: 'check_in' | 'check_out') {
     if (type === 'check_in' && !employeeId) {
