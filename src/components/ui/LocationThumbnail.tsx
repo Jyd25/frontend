@@ -14,10 +14,12 @@ interface LocationThumbnailProps {
   size?: 'sm' | 'md'
 }
 
-function formatDistance(m?: number | null) {
-  if (m == null) return null
-  if (m < 1000) return `${m.toFixed(0)}m`
-  return `${(m / 1000).toFixed(2)}km`
+function formatDistance(m?: number | string | null) {
+  if (m == null || m === '') return null
+  const n = Number(m)
+  if (Number.isNaN(n)) return null
+  if (n < 1000) return `${n.toFixed(0)}m`
+  return `${(n / 1000).toFixed(2)}km`
 }
 
 export default function LocationThumbnail({
@@ -80,7 +82,7 @@ export default function LocationThumbnail({
         })
         L.marker([centerLat, centerLng], { icon: centerIcon }).addTo(map)
 
-        if (distance != null) {
+        if (distValue != null && !Number.isNaN(distValue)) {
           L.polyline([[userLat!, userLng!], [centerLat, centerLng]], {
             color: '#ef4444',
             weight: 2,
@@ -108,6 +110,7 @@ export default function LocationThumbnail({
   }, [open, hasCoords, userLat, userLng, centerLat, centerLng, radius, locationName, distance])
 
   const distText = formatDistance(distance)
+  const distValue = typeof distance === 'string' && distance !== '' ? Number(distance) : (distance as number | null | undefined)
 
   if (!hasCoords) {
     return (
@@ -151,9 +154,9 @@ export default function LocationThumbnail({
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-50 text-blue-700">
                 <Navigation size={12} /> Jarak: {distText ?? '-'}
               </span>
-              {distance != null && radius != null && (
-                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded ${distance <= radius ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                  <MapPin size={12} /> {distance <= radius ? 'Dalam Radius' : 'Luar Radius'}
+              {distValue != null && !Number.isNaN(distValue) && radius != null && (
+                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded ${distValue <= radius ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                  <MapPin size={12} /> {distValue <= radius ? 'Dalam Radius' : 'Luar Radius'}
                 </span>
               )}
             </div>
