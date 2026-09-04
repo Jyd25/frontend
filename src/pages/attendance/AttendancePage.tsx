@@ -12,7 +12,7 @@ import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
-import { formatTime } from '@/lib/utils'
+import { formatTime, safeDateString } from '@/lib/utils'
 import FaceThumbnail from '@/components/ui/FaceThumbnail'
 import LocationThumbnail from '@/components/ui/LocationThumbnail'
 import type { Attendance } from '@/types/api'
@@ -47,6 +47,16 @@ function getStatusBadge(status?: string) {
     case 'Sakit': return <Badge variant="warning">Sakit</Badge>
     case 'Libur': return <Badge variant="info">Libur</Badge>
     default: return <Badge>{status || '-'}</Badge>
+  }
+}
+
+function safeDateKey(v: string): string | null {
+  try {
+    const d = new Date(v.replace(/\.\d+Z$/, 'Z').replace(/\.\d+/, ''))
+    if (isNaN(d.getTime())) return null
+    return d.toLocaleDateString('sv-SE')
+  } catch {
+    return null
   }
 }
 
@@ -305,9 +315,9 @@ export default function AttendancePage() {
       if (item.employee?.id !== user?.employee_id) continue
       let dateKey: string | null = null
       if (item.check_in_time) {
-        dateKey = new Date(item.check_in_time).toLocaleDateString('sv-SE')
+        dateKey = safeDateKey(item.check_in_time)
       } else if (item.check_out_time) {
-        dateKey = new Date(item.check_out_time).toLocaleDateString('sv-SE')
+        dateKey = safeDateKey(item.check_out_time)
       }
       if (dateKey) {
         if (!map[dateKey]) {
@@ -326,9 +336,9 @@ export default function AttendancePage() {
     for (const item of items) {
       let dateKey: string | null = null
       if (item.check_in_time) {
-        dateKey = new Date(item.check_in_time).toLocaleDateString('sv-SE')
+        dateKey = safeDateKey(item.check_in_time)
       } else if (item.check_out_time) {
-        dateKey = new Date(item.check_out_time).toLocaleDateString('sv-SE')
+        dateKey = safeDateKey(item.check_out_time)
       }
       if (dateKey) {
         if (!map[dateKey]) map[dateKey] = []
@@ -366,10 +376,21 @@ export default function AttendancePage() {
     setShowCorrectionModal(true)
   }
 
+  function toLocalInput(v?: string | null): string {
+    if (!v) return ''
+    try {
+      const d = new Date(v.replace(/\.\d+Z$/, 'Z').replace(/\.\d+/, ''))
+      if (isNaN(d.getTime())) return ''
+      return d.toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(' ', 'T')
+    } catch {
+      return ''
+    }
+  }
+
   function openEdit(item: Attendance) {
     setEditItem(item)
-    setEditCheckIn(item.check_in_time ? new Date(item.check_in_time).toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(' ', 'T') : '')
-    setEditCheckOut(item.check_out_time ? new Date(item.check_out_time).toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(' ', 'T') : '')
+    setEditCheckIn(toLocalInput(item.check_in_time))
+    setEditCheckOut(toLocalInput(item.check_out_time))
     setShowEditModal(true)
   }
 
@@ -681,9 +702,9 @@ export default function AttendancePage() {
                 {(monthData?.data?.items || []).map((item: Attendance) => {
                   const isLiburRow = item.attendance_status === 'Libur'
                   const dateStr = item.check_in_time
-                    ? new Date(item.check_in_time).toLocaleDateString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
+                    ? safeDateString(item.check_in_time, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
                     : item.check_out_time
-                      ? new Date(item.check_out_time).toLocaleDateString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
+                      ? safeDateString(item.check_out_time, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
                       : '-'
                   const avatarPhoto = item.employee?.photo
 
@@ -853,7 +874,7 @@ export default function AttendancePage() {
       <Modal
         open={!!dayDetail}
         onClose={() => setDayDetail(null)}
-        title={dayDetail ? new Date(dayDetail.dateKey + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''}
+        title={dayDetail ? safeDateString(dayDetail.dateKey + 'T00:00:00', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''}
       >
         {dayDetail && (
           <div className="space-y-3 max-h-[70vh] overflow-y-auto">
@@ -889,7 +910,7 @@ export default function AttendancePage() {
             <p className="text-sm text-sky-800 font-medium">
               {correctionType === 'check_in' ? 'Perbaikan Jam Masuk' : 'Perbaikan Jam Pulang'}
             </p>
-            <p className="text-xs text-sky-600 mt-0.5">Tanggal: {new Date(correctionDate + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+            <p className="text-xs text-sky-600 mt-0.5">Tanggal: {safeDateString(correctionDate + 'T00:00:00', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
           </div>
           <div className="space-y-1">
             <label className="text-[11px] uppercase tracking-wider font-medium text-gray-500">Alasan Perbaikan</label>
