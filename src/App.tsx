@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import AuthLayout from './components/layouts/AuthLayout'
 import MainLayout from './components/layouts/MainLayout'
+import ErrorBoundary from './components/ui/ErrorBoundary'
 import { useAuthStore } from './stores/useAuthStore'
 import { useSessionTimeout } from './hooks/useSessionTimeout'
 
@@ -61,7 +62,7 @@ export default function App() {
           <Route path="/schedules" element={<ScheduleListPage />} />
           <Route path="/holidays" element={<HolidayListPage />} />
           <Route path="/locations" element={<LocationListPage />} />
-          <Route path="/attendance" element={<AttendancePage />} />
+          <Route path="/attendance" element={<ErrorBoundary><AttendancePage /></ErrorBoundary>} />
           <Route path="/attendances" element={<AttendanceListPage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/notifications" element={<NotificationPage />} />

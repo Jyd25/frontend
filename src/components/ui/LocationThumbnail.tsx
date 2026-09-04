@@ -39,66 +39,70 @@ export default function LocationThumbnail({
 
   useEffect(() => {
     if (!open || !mapRef.current || mapInstanceRef.current || !hasCoords) return
+    if (!mapRef.current.offsetWidth || !mapRef.current.offsetHeight) return
 
-    const map = L.map(mapRef.current, { zoomControl: true }).setView([userLat!, userLng!], 15)
+    let map: L.Map | undefined
+    try {
+      map = L.map(mapRef.current, { zoomControl: true }).setView([userLat!, userLng!], 15)
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap',
-      maxZoom: 19,
-    }).addTo(map)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap',
+        maxZoom: 19,
+      }).addTo(map)
 
-    const userIcon = L.divIcon({
-      className: '',
-      html: `<div style="width:16px;height:16px;background:#2563eb;border:3px solid white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>`,
-      iconSize: [16, 16],
-      iconAnchor: [8, 8],
-    })
-    L.marker([userLat!, userLng!], { icon: userIcon }).addTo(map)
-      .bindPopup(`<b>Lokasi Verifikasi</b><br/>${Number(userLat).toFixed(6)}, ${Number(userLng).toFixed(6)}`)
-      .openPopup()
-
-    if (centerLat != null && centerLng != null) {
-      if (radius != null && radius > 0) {
-        L.circle([centerLat, centerLng], {
-          radius,
-          color: '#0ea5e9',
-          fillColor: '#0ea5e9',
-          fillOpacity: 0.08,
-          weight: 2,
-          dashArray: '6 4',
-        }).addTo(map).bindPopup(`<b>${locationName || 'Lokasi'}</b><br/>Radius: ${radius}m`)
-      }
-
-      const centerIcon = L.divIcon({
+      const userIcon = L.divIcon({
         className: '',
-        html: `<div style="width:13px;height:13px;background:#10b981;border:2px solid white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>`,
-        iconSize: [13, 13],
-        iconAnchor: [7, 7],
+        html: `<div style="width:16px;height:16px;background:#2563eb;border:3px solid white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
       })
-      L.marker([centerLat, centerLng], { icon: centerIcon }).addTo(map)
+      L.marker([userLat!, userLng!], { icon: userIcon }).addTo(map)
+        .bindPopup(`<b>Lokasi Verifikasi</b><br/>${Number(userLat).toFixed(6)}, ${Number(userLng).toFixed(6)}`)
+        .openPopup()
 
-      if (distance != null) {
-        L.polyline([[userLat!, userLng!], [centerLat, centerLng]], {
-          color: '#ef4444',
-          weight: 2,
-          dashArray: '8 6',
-        }).addTo(map)
+      if (centerLat != null && centerLng != null) {
+        if (radius != null && radius > 0) {
+          L.circle([centerLat, centerLng], {
+            radius,
+            color: '#0ea5e9',
+            fillColor: '#0ea5e9',
+            fillOpacity: 0.08,
+            weight: 2,
+            dashArray: '6 4',
+          }).addTo(map).bindPopup(`<b>${locationName || 'Lokasi'}</b><br/>Radius: ${radius}m`)
+        }
+
+        const centerIcon = L.divIcon({
+          className: '',
+          html: `<div style="width:13px;height:13px;background:#10b981;border:2px solid white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>`,
+          iconSize: [13, 13],
+          iconAnchor: [7, 7],
+        })
+        L.marker([centerLat, centerLng], { icon: centerIcon }).addTo(map)
+
+        if (distance != null) {
+          L.polyline([[userLat!, userLng!], [centerLat, centerLng]], {
+            color: '#ef4444',
+            weight: 2,
+            dashArray: '8 6',
+          }).addTo(map)
+        }
+
+        try {
+          const bounds = L.latLngBounds([[userLat!, userLng!], [centerLat, centerLng]]).pad(0.3)
+          map.fitBounds(bounds)
+        } catch {}
+      } else {
+        map.setView([userLat!, userLng!], 15)
       }
 
-      const bounds = L.latLngBounds([[userLat!, userLng!], [centerLat, centerLng]]).pad(0.3)
-      map.fitBounds(bounds)
       mapInstanceRef.current = map
-      return () => {
-        map.remove()
-        mapInstanceRef.current = null
-      }
+    } catch {
+      if (map) { try { map.remove() } catch {} }
+      mapInstanceRef.current = null
     }
-
-    map.setView([userLat!, userLng!], 15)
-    mapInstanceRef.current = map
-
     return () => {
-      map.remove()
+      if (mapInstanceRef.current) { try { mapInstanceRef.current.remove() } catch {} }
       mapInstanceRef.current = null
     }
   }, [open, hasCoords, userLat, userLng, centerLat, centerLng, radius, locationName, distance])
@@ -166,18 +170,25 @@ function MiniMap({ userLat, userLng }: { userLat: number; userLng: number }) {
 
   useEffect(() => {
     if (!ref.current || inst.current) return
-    const map = L.map(ref.current, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, touchZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false }).setView([userLat, userLng], 15)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map)
-    const dot = L.divIcon({
-      className: '',
-      html: `<div style="width:14px;height:14px;background:#2563eb;border:3px solid white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>`,
-      iconSize: [14, 14],
-      iconAnchor: [7, 7],
-    })
-    L.marker([userLat, userLng], { icon: dot }).addTo(map)
-    inst.current = map
+    if (!ref.current.offsetWidth || !ref.current.offsetHeight) return
+    let map: L.Map | undefined
+    try {
+      map = L.map(ref.current, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, touchZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false }).setView([userLat, userLng], 15)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map)
+      const dot = L.divIcon({
+        className: '',
+        html: `<div style="width:14px;height:14px;background:#2563eb;border:3px solid white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      })
+      L.marker([userLat, userLng], { icon: dot }).addTo(map)
+      inst.current = map
+    } catch {
+      if (map) { try { map.remove() } catch {} }
+      inst.current = null
+    }
     return () => {
-      map.remove()
+      if (inst.current) { try { inst.current.remove() } catch {} }
       inst.current = null
     }
   }, [userLat, userLng])
