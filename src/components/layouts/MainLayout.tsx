@@ -1,6 +1,7 @@
 import { Outlet, Navigate, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useLogout, useProfile } from '@/hooks/useAuth'
+import { useAttendanceReminder } from '@/hooks/useAttendanceReminder'
 import { LogOut, LayoutDashboard, Users, Building2, Briefcase, Clock, MapPin, CalendarCheck, Bell, Menu, X, UserCog, FileText, AlertTriangle, Download, Camera, AlertCircle, CalendarOff } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -78,6 +79,19 @@ export default function MainLayout() {
       return data.data
     },
     staleTime: 3600000,
+  })
+
+  const reminderSchedule = (profileData as any)?.employee?.schedule
+  const toMinute = (t?: string) => {
+    const [hh, mm] = (t || '').split(':').map(Number)
+    return (hh || 0) * 60 + (mm || 0)
+  }
+  useAttendanceReminder({
+    enabled: isStaff && !holidayToday?.is_non_working_day,
+    checkInDeadlineMin: toMinute(reminderSchedule?.start_time) || 420,
+    checkOutDeadlineMin: toMinute(reminderSchedule?.end_time) || 960,
+    hasCheckedIn: !!todayAttendance?.check_in_time,
+    hasCheckedOut: !!todayAttendance?.check_out_time,
   })
 
   const prevProfileRef = useRef<string | null>(null)
