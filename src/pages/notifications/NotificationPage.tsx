@@ -33,6 +33,7 @@ export default function NotificationPage() {
     mutationFn: (id: number) => notificationService.markAsRead(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread'] })
     },
   })
 
@@ -40,6 +41,7 @@ export default function NotificationPage() {
     mutationFn: notificationService.markAllAsRead,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread'] })
       toast.success('Semua notifikasi ditandai sudah dibaca')
     },
     onError: () => {
