@@ -20,6 +20,56 @@ type Step = 'idle' | 'face' | 'submitting' | 'done'
 const AUTO_CAPTURE_SCORE = 0.75
 const CAPTURE_STABLE_MS = 1500
 
+function stampUnregisteredFace(dataUri: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth || 640
+        const h = img.naturalHeight || 480
+        const c = document.createElement('canvas')
+        c.width = w
+        c.height = h
+        const ctx = c.getContext('2d')
+        if (!ctx) reject(new Error('Canvas tidak tersedia'))
+        else {
+          ctx.drawImage(img, 0, 0, w, h)
+          const label = 'WAJAH TIDAK TERDAFTAR'
+          const fontSize = Math.max(16, Math.round(w * 0.055))
+          const pad = Math.round(fontSize * 0.55)
+          const bandH = fontSize + pad * 2
+          ctx.fillStyle = 'rgba(220, 38, 38, 0.85)'
+          ctx.fillRect(0, 0, w, bandH)
+          ctx.strokeStyle = 'rgba(220, 38, 38, 0.9)'
+          ctx.lineWidth = Math.max(2, Math.round(fontSize * 0.1))
+          ctx.strokeRect(0, 0, w, bandH)
+          ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`
+          ctx.fillStyle = '#ffffff'
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          ctx.fillText(label, w / 2, bandH / 2)
+          ctx.strokeStyle = '#dc2626'
+          ctx.lineWidth = Math.max(4, Math.round(w * 0.012))
+          ctx.strokeRect(0, 0, w, h)
+          c.toBlob((blob) => {
+            if (!blob) reject(new Error('Gagal membuat gambar'))
+            else {
+              const reader = new FileReader()
+              reader.onloadend = () => resolve(reader.result as string)
+              reader.onerror = () => reject(new Error('Gagal membaca gambar'))
+              reader.readAsDataURL(blob)
+            }
+          }, 'image/jpeg', 0.92)
+        }
+      } catch (e) {
+        reject(e)
+      }
+    }
+    img.onerror = () => reject(new Error('Gagal memuat gambar'))
+    img.src = dataUri
+  })
+}
+
 interface Props {
   open: boolean
   onClose: () => void
@@ -46,6 +96,7 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
   const [countdown, setCountdown] = useState<number | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [capturedFacePhoto, setCapturedFacePhoto] = useState<string | null>(null)
+  const [noFaceData, setNoFaceData] = useState(false)
   const [geoLoading, setGeoLoading] = useState(false)
 
   const faceDetectedSinceRef = useRef<number | null>(null)
@@ -62,6 +113,7 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
       setCameraError(null)
       setCountdown(null)
       setCapturedFacePhoto(null)
+      setNoFaceData(false)
       faceDetectedSinceRef.current = null
       if (autoCaptureTimerRef.current) clearTimeout(autoCaptureTimerRef.current)
       face.stopCamera()
@@ -206,7 +258,14 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
       setFaceResult(currentFaceResult)
 
       if ((verifyResult as any).no_face_data) {
+        setNoFaceData(true)
         toast.warning('Data wajah belum terdaftar. Verifikasi dilewati.', { duration: 6000 })
+        if (imageDataUri) {
+          try {
+            imageDataUri = await stampUnregisteredFace(imageDataUri)
+            setCapturedFacePhoto(imageDataUri)
+          } catch {}
+        }
       } else if (!verifyResult.matched) {
         toast.warning(`Wajah tidak cocok (skor: ${verifyResult.score}%). Presensi tetap dilanjutkan.`, { duration: 5000 })
       } else {
@@ -248,6 +307,7 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
     setCameraError(null)
     setCountdown(null)
     setCapturedFacePhoto(null)
+    setNoFaceData(false)
     faceDetectedSinceRef.current = null
     gpsCoordsRef.current = null
     setStep('face')
@@ -331,6 +391,7 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
     setCameraError(null)
     setCountdown(null)
     setCapturedFacePhoto(null)
+    setNoFaceData(false)
     faceDetectedSinceRef.current = null
     if (autoCaptureTimerRef.current) clearTimeout(autoCaptureTimerRef.current)
   }
@@ -531,9 +592,11 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
           </p>
           <div className="flex flex-wrap justify-center gap-2">
             {faceResult && (
-              faceResult.matched
-                ? <Badge variant="success">Wajah Cocok ({faceResult.score}%)</Badge>
-                : <Badge variant="danger">Wajah Tidak Cocok</Badge>
+              noFaceData
+                ? <Badge variant="warning">Wajah Tidak Terdaftar</Badge>
+                : faceResult.matched
+                  ? <Badge variant="success">Wajah Cocok ({faceResult.score}%)</Badge>
+                  : <Badge variant="danger">Wajah Tidak Cocok</Badge>
             )}
             {geoResult && (
               geoResult.inside
@@ -549,10 +612,10 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
         <div className="text-center space-y-4">
           {capturedFacePhoto && (
             <div className="inline-block">
-              <div className={`relative rounded-xl overflow-hidden border-2 ${faceResult?.matched ? 'border-emerald-400' : 'border-amber-400'}`}>
-                <img src={capturedFacePhoto} alt="Hasil Verifikasi" className="w-36 h-36 object-cover" style={{ transform: 'scaleX(-1)' }} />
-                <div className={`absolute bottom-0 left-0 right-0 px-2 py-1.5 text-center text-xs font-bold text-white ${faceResult?.matched ? 'bg-emerald-600/90' : 'bg-amber-500/90'}`}>
-                  {faceResult?.score ?? 0}% Cocok
+              <div className={`relative rounded-xl overflow-hidden border-2 ${noFaceData ? 'border-red-400' : faceResult?.matched ? 'border-emerald-400' : 'border-amber-400'}`}>
+                <img src={capturedFacePhoto} alt="Hasil Verifikasi" className="w-36 h-36 object-cover" style={{ transform: noFaceData ? 'none' : 'scaleX(-1)' }} />
+                <div className={`absolute bottom-0 left-0 right-0 px-2 py-1.5 text-center text-xs font-bold text-white ${noFaceData ? 'bg-red-600/90' : faceResult?.matched ? 'bg-emerald-600/90' : 'bg-amber-500/90'}`}>
+                  {noFaceData ? 'Wajah Tidak Terdaftar' : `${faceResult?.score ?? 0}% Cocok`}
                 </div>
               </div>
             </div>
