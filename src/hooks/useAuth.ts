@@ -38,6 +38,36 @@ export function useLogin() {
   })
 }
 
+export function useGuestLogin() {
+  const setAuth = useAuthStore((s) => s.setAuth)
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: authService.guestLogin,
+    onSuccess: (data) => {
+      const accessToken = data?.token?.access_token
+      const refreshToken = data?.token?.refresh_token
+
+      if (!accessToken || typeof accessToken !== 'string' || accessToken.split('.').length !== 3) {
+        toast.error('Respons login tamu tidak valid. Silakan coba lagi.')
+        return
+      }
+
+      queryClient.clear()
+      setAuth(data.user, accessToken, refreshToken ?? accessToken, false)
+      const defaultRoute = ['Administrator', 'Pimpinan'].includes(data.user.role?.name) ? '/dashboard' : '/attendance'
+      toast.success(`Masuk sebagai tamu. Selamat datang, ${data.user.name}`, {
+        description: 'Akses demo tanpa password',
+        duration: 3000,
+      })
+      navigate(defaultRoute, { replace: true })
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Login tamu gagal')
+    },
+  })
+}
+
 export function useLogout() {
   const logout = useAuthStore((s) => s.logout)
   const navigate = useNavigate()

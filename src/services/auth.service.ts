@@ -17,6 +17,10 @@ export const authService = {
     const { data } = await api.post<ApiResponse<LoginData>>('/auth/login', { email, password, remember_me: rememberMe })
     return data.data
   },
+  guestLogin: async () => {
+    const { data } = await api.post<ApiResponse<LoginData>>('/auth/guest')
+    return data.data
+  },
   logout: async () => {
     await api.post('/auth/logout')
   },

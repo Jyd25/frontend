@@ -1,8 +1,8 @@
-import { useLogin } from '@/hooks/useAuth'
+import { useLogin, useGuestLogin } from '@/hooks/useAuth'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Logo from '@/components/ui/Logo'
-import { Mail, Lock, ArrowRight } from 'lucide-react'
+import { Mail, Lock, ArrowRight, UserRound } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -17,6 +17,7 @@ type LoginForm = z.infer<typeof loginSchema>
 
 export default function LoginPage() {
   const login = useLogin()
+  const guestLogin = useGuestLogin()
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
   })
@@ -69,6 +70,28 @@ export default function LoginPage() {
           <ArrowRight size={16} className="ml-2 group-hover:translate-x-0.5 transition-transform" />
         </Button>
       </form>
+
+      <div className="flex items-center gap-3 my-4">
+        <div className="flex-1 h-px bg-gray-200" />
+        <span className="text-xs text-gray-400">atau</span>
+        <div className="flex-1 h-px bg-gray-200" />
+      </div>
+
+      <Button
+        type="button"
+        variant="outline"
+        loading={guestLogin.isPending}
+        disabled={login.isPending}
+        onClick={() => guestLogin.mutate()}
+        className="w-full"
+        size="lg"
+      >
+        <UserRound size={16} />
+        Login sebagai Tamu
+      </Button>
+      <p className="text-xs text-gray-400 text-center mt-2">
+        Masuk tanpa password untuk demo / penguji
+      </p>
 
       <p className="text-xs text-gray-400 text-center mt-6">
         Sistem Kehadiran Digital
