@@ -5,7 +5,7 @@ import { CheckCircle, XCircle, Camera, Upload, Trash2 } from 'lucide-react'
 import { formatDateFull } from '@/lib/utils'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { faceUpdateRequestService, type FaceUpdateRequest } from '@/services/face-geo.service'
-import { useFaceRecognition } from '@/hooks/useFaceRecognition'
+import { loadModels, useFaceRecognition } from '@/hooks/useFaceRecognition'
 import { invalidateAttendanceQueries, invalidateFaceQueries } from '@/lib/queryInvalidation'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -18,7 +18,7 @@ const STATUS_LABEL: Record<string, string> = { pending: 'Menunggu', approved: 'D
 export default function FaceUpdateRequestPage() {
   const queryClient = useQueryClient()
   const user = useAuthStore((s) => s.user)
-  const isAdmin = ['Administrator', 'Pimpinan'].includes(user?.role?.name ?? '')
+  const isAdmin = user?.role?.name === 'Administrator'
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -144,15 +144,24 @@ function FaceRequestForm({ open, onClose }: { open: boolean; onClose: () => void
   const [descriptor, setDescriptor] = useState<number[] | null>(null)
   const [capturedImage, setCapturedImage] = useState<string | null>(null)
   const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [modelsReady, setModelsReady] = useState(false)
 
   useEffect(() => {
     if (!open) return
+    let cancelled = false
     const timer = setTimeout(() => {
       if (step === 'camera') {
-        startCamera().then((ok) => { if (ok) startDetection() })
+        loadModels().then((ok) => {
+          if (cancelled || !ok) return
+          setModelsReady(true)
+          startCamera().then((started) => {
+            if (started) startDetection()
+          })
+        })
       }
     }, 200)
     return () => {
+      cancelled = true
       clearTimeout(timer)
       stopCamera()
       stopDetection()
@@ -183,6 +192,7 @@ function FaceRequestForm({ open, onClose }: { open: boolean; onClose: () => void
     setDescriptor(null)
     setCapturedImage(null)
     setPendingFile(null)
+    setModelsReady(false)
     onClose()
   }
 
@@ -208,6 +218,7 @@ function FaceRequestForm({ open, onClose }: { open: boolean; onClose: () => void
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+    await loadModels()
     const faceapi = await import('@vladmandic/face-api')
     const img = new Image()
     img.src = URL.createObjectURL(file)
@@ -246,14 +257,18 @@ function FaceRequestForm({ open, onClose }: { open: boolean; onClose: () => void
                 <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-green-500/90 text-white text-xs font-medium px-2 py-1 rounded-full">
                   <CheckCircle size={12} /> Wajah Terdeteksi
                 </div>
-              ) : (
+              ) : modelsReady ? (
                 <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-red-500/90 text-white text-xs font-medium px-2 py-1 rounded-full">
                   <XCircle size={12} /> Mencari wajah...
+                </div>
+              ) : (
+                <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-gray-500/90 text-white text-xs font-medium px-2 py-1 rounded-full">
+                  <XCircle size={12} /> Memuat model...
                 </div>
               )}
             </div>
             <div className="flex gap-2">
-              <Button onClick={handleCapture} className="flex-1" disabled={!faceDetected}>
+              <Button onClick={handleCapture} className="flex-1" disabled={!faceDetected} loading={!modelsReady}>
                 <Camera size={16} className="mr-2" /> Ambil Foto
               </Button>
               <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="flex-1">
