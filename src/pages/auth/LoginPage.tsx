@@ -89,9 +89,6 @@ export default function LoginPage() {
         <UserRound size={16} />
         Login sebagai Tamu
       </Button>
-      <p className="text-xs text-gray-400 text-center mt-2">
-        Masuk tanpa password untuk demo / penguji
-      </p>
 
       <p className="text-xs text-gray-400 text-center mt-6">
         Sistem Kehadiran Digital
