@@ -159,7 +159,7 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
     loadModels().then((ok) => setModelsReady(ok))
   }, [])
 
-  const processGeo = useCallback(async (lat: number, lng: number, photoData?: string | null, faceRes?: { matched: boolean; score: number } | null) => {
+  const processGeo = useCallback(async (lat: number, lng: number, photoData?: string | null, faceRes?: { matched: boolean; score: number } | null, unregistered = false) => {
     setStep('submitting')
     setIsProcessing(true)
     let locationId: number | null = null
@@ -199,8 +199,8 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
     }
 
     const facePayload = {
-      face_score: faceRes?.score,
-      face_status: faceRes?.matched ? 'matched' : 'unmatched',
+      face_score: unregistered ? undefined : faceRes?.score,
+      face_status: unregistered ? 'unmatched' : faceRes?.matched ? 'matched' : 'unmatched',
       photo_data: photoData || undefined,
     }
 
@@ -251,6 +251,7 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
     setCapturedFacePhoto(imageDataUri)
 
     let currentFaceResult: { matched: boolean; score: number } | null = null
+    let unregistered = false
     toast.info('Memverifikasi wajah...')
     try {
       const verifyResult = await faceService.verify(employeeId!, descriptorToArray(result.descriptor))
@@ -258,6 +259,7 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
       setFaceResult(currentFaceResult)
 
       if ((verifyResult as any).no_face_data) {
+        unregistered = true
         setNoFaceData(true)
         toast.warning('Data wajah belum terdaftar. Verifikasi dilewati.', { duration: 6000 })
         if (imageDataUri) {
@@ -280,11 +282,11 @@ export default function PresensiModal({ open, onClose, todayAttendance }: Props)
     toast.info('Mengirim data presensi...')
     face.stopCamera()
     if (gpsCoordsRef.current) {
-      await processGeo(gpsCoordsRef.current.lat, gpsCoordsRef.current.lng, imageDataUri, currentFaceResult)
+      await processGeo(gpsCoordsRef.current.lat, gpsCoordsRef.current.lng, imageDataUri, currentFaceResult, unregistered)
     } else {
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
-          await processGeo(pos.coords.latitude, pos.coords.longitude, imageDataUri, currentFaceResult)
+          await processGeo(pos.coords.latitude, pos.coords.longitude, imageDataUri, currentFaceResult, unregistered)
         },
         () => {
           toast.error('Gagal mendapatkan lokasi. GPS aktif?')

@@ -29,6 +29,7 @@ export default function ImagePreview({ open, onClose, src, alt = 'Preview', face
   if (!open || !src) return null
 
   const isMatched = faceStatus === 'Matched' || faceStatus === 'matched'
+  const unregistered = !!faceStatus && !isMatched && faceScore == null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
@@ -48,9 +49,9 @@ export default function ImagePreview({ open, onClose, src, alt = 'Preview', face
         {(faceStatus || faceScore != null) && (
           <div className="mt-3 flex items-center justify-center gap-4">
             {faceStatus && (
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${isMatched ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                <span className={`w-2 h-2 rounded-full ${isMatched ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                {isMatched ? 'Terverifikasi' : 'Tidak Cocok'}
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${unregistered ? 'bg-amber-100 text-amber-700' : isMatched ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                <span className={`w-2 h-2 rounded-full ${unregistered ? 'bg-amber-500' : isMatched ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                {unregistered ? 'Wajah Tidak Terdaftar' : isMatched ? 'Terverifikasi' : 'Tidak Cocok'}
               </span>
             )}
             {faceScore != null && (

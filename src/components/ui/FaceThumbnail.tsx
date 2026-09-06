@@ -16,6 +16,21 @@ export default function FaceThumbnail({ src, faceStatus, faceScore, size = 'sm',
   const sizeClasses = size === 'sm' ? 'w-14 h-14' : 'w-20 h-20'
   const iconSize = size === 'sm' ? 16 : 24
 
+  const isMatched = faceStatus === 'Matched' || faceStatus === 'matched'
+  const unregistered = !!faceStatus && !isMatched && faceScore == null
+
+  if (unregistered) {
+    return (
+      <button
+        onClick={() => setPreviewOpen(true)}
+        className={`${sizeClasses} rounded-lg border-2 border-amber-200 bg-amber-50 flex items-center justify-center flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity`}
+        title="Klik untuk preview"
+      >
+        <span className="text-[9px] font-semibold text-amber-600 text-center leading-tight px-1">Wajah Tidak Terdaftar</span>
+      </button>
+    )
+  }
+
   if (!src) {
     return (
       <div className={`${sizeClasses} rounded-lg border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0`}>
