@@ -235,8 +235,8 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
       render: (r: any) => {
         const a = recordOf(r)
         if (!a) return <span className="text-xs text-gray-400">-</span>
-        const coLat = a.checkout_latitude ?? (!a.check_in_time ? a.latitude : null)
-        const coLng = a.checkout_longitude ?? (!a.check_in_time ? a.longitude : null)
+        const coLat = a.checkout_latitude ?? a.latitude
+        const coLng = a.checkout_longitude ?? a.longitude
         return coLat != null && coLng != null ? (
           <LocationThumbnail
             userLat={coLat}

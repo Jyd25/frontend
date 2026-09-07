@@ -187,8 +187,8 @@ const columns = [
       key: 'checkout_address',
       header: 'Alamat Pulang',
       render: (item: Attendance) => {
-        const coLat = item.checkout_latitude ?? (!item.check_in_time ? item.latitude : null)
-        const coLng = item.checkout_longitude ?? (!item.check_in_time ? item.longitude : null)
+        const coLat = item.checkout_latitude ?? item.latitude
+        const coLng = item.checkout_longitude ?? item.longitude
         if (coLat != null && coLng != null) {
           return (
             <LocationThumbnail

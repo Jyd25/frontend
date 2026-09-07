@@ -142,8 +142,8 @@ function DayRow({ item, isAdmin, onEdit, onCorrection, canCorrect }: { item: Att
         <div className="space-y-0.5">
           <p className="text-[10px] uppercase tracking-wider text-gray-400 font-medium flex items-center gap-1"><MapPin size={10} className="text-orange-400" /> Alamat Check Out</p>
           {(() => {
-            const coLat = item.checkout_latitude ?? (!item.check_in_time ? item.latitude : null)
-            const coLng = item.checkout_longitude ?? (!item.check_in_time ? item.longitude : null)
+            const coLat = item.checkout_latitude ?? item.latitude
+            const coLng = item.checkout_longitude ?? item.longitude
             if (coLat != null && coLng != null) {
               return (
                 <LocationThumbnail
@@ -826,8 +826,8 @@ export default function AttendancePage() {
                       </td>
                       <td className="px-3 py-3">
                         {(() => {
-                          const coLat = item.checkout_latitude ?? (!item.check_in_time ? item.latitude : null)
-                          const coLng = item.checkout_longitude ?? (!item.check_in_time ? item.longitude : null)
+                          const coLat = item.checkout_latitude ?? item.latitude
+                          const coLng = item.checkout_longitude ?? item.longitude
                           if (coLat != null && coLng != null) {
                             return (
                               <LocationThumbnail
