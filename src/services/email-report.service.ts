@@ -5,7 +5,7 @@ export type EmailSendStatus = 'not_sent' | 'pending' | 'sent' | 'failed'
 
 export interface EmailReportItem {
   user_id: number
-  employee_id: number
+  employee_id: number | null
   name: string
   email: string
   nik: string
