@@ -57,7 +57,7 @@ export default function EmailReportPage() {
 
   const periodReady = !!startDate && !!endDate && endDate >= startDate
 
-  const { data, isLoading, isFetching } = useQuery({
+  const { data, isLoading, isFetching, isError } = useQuery({
     queryKey: ['email-reports-status', startDate, endDate, deptId],
     queryFn: () =>
       emailReportService.getStatus({
@@ -99,14 +99,20 @@ export default function EmailReportPage() {
     },
   })
 
-  const resendMutation = useMutation({
-    mutationFn: (id: number) => emailReportService.resend(id),
+  const sendOneMutation = useMutation({
+    mutationFn: (item: EmailReportItem) =>
+      emailReportService.sendOne({
+        user_id: item.user_id,
+        start_date: startDate,
+        end_date: endDate,
+        format,
+      }),
     onSuccess: (res) => {
-      toast.success(res.message)
+      toast.success(res.message || 'Email laporan sedang dikirim')
       queryClient.invalidateQueries({ queryKey: ['email-reports-status', startDate, endDate, deptId] })
     },
     onError: (e: any) => {
-      toast.error(e?.response?.data?.message || 'Gagal mengirim ulang email')
+      toast.error(e?.response?.data?.message || 'Gagal mengirim email laporan')
     },
   })
 
@@ -226,8 +232,12 @@ export default function EmailReportPage() {
           <div className="flex items-center justify-center py-10">
             <div className="h-8 w-8 rounded-full border-2 border-sky-200 border-t-teal-600 animate-spin" />
           </div>
+        ) : isError ? (
+          <p className="text-red-400 text-sm text-center py-4">
+            Gagal memuat status pengiriman email. Periksa koneksi ke server.
+          </p>
         ) : items.length === 0 ? (
-          <p className="text-gray-400 text-sm text-center py-4">Tidak ada user dengan data karyawan</p>
+          <p className="text-gray-400 text-sm text-center py-4">Tidak ada user ber-email yang terdaftar</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -272,21 +282,25 @@ export default function EmailReportPage() {
                       {formatDateTime(item.sent_at)}
                     </td>
                     <td className="px-3 py-2 text-center">
-                      {item.status === 'failed' ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => item.report_id && resendMutation.mutate(item.report_id)}
-                          loading={
-                            resendMutation.isPending && item.report_id === resendMutation.variables
-                          }
-                        >
-                          <Mail size={14} className="mr-1" /> Kirim Ulang
-                        </Button>
-                      ) : (
-                        <span className="text-gray-300">-</span>
-                      )}
-                    </td>
+  {!item.employee_id || !item.has_attendance ? (
+    <span
+      className="text-gray-300"
+      title={item.employee_id ? 'Tidak ada data kehadiran untuk periode ini' : 'User tidak memiliki data karyawan'}
+    >
+      -
+    </span>
+  ) : (
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={() => sendOneMutation.mutate(item)}
+      loading={sendOneMutation.isPending && item.user_id === sendOneMutation.variables?.user_id}
+    >
+      <Mail size={14} className="mr-1" />{' '}
+      {item.status === 'failed' ? 'Kirim Ulang' : item.status === 'sent' ? 'Kirim Lagi' : 'Kirim'}
+    </Button>
+  )}
+</td>
                   </tr>
                 ))}
               </tbody>

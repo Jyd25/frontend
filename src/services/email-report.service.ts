@@ -36,6 +36,10 @@ export const emailReportService = {
     )
     return data
   },
+  sendOne: async (payload: { user_id: number; start_date: string; end_date: string; format: 'pdf' | 'excel' }) => {
+    const { data } = await api.post<ApiResponse<{ report_id: number }>>('/export/emails/send-user', payload)
+    return data
+  },
   resend: async (id: number) => {
     const { data } = await api.post<ApiResponse<{ report_id: number }>>(`/export/emails/${id}/resend`)
     return data
