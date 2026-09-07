@@ -96,16 +96,18 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
         per_page: 100,
       })
     },
-    staleTime: 10000,
+    staleTime: 0,
     refetchInterval: 30000,
+    refetchOnWindowFocus: true,
     enabled: !isAdminView,
   })
 
   const adminQuery = useQuery({
     queryKey: ['admin-attendance-recap', page, month, year],
     queryFn: () => attendanceService.getAll({ month, year, page, per_page: 50 }),
-    staleTime: 10000,
+    staleTime: 0,
     refetchInterval: 30000,
+    refetchOnWindowFocus: true,
     enabled: isAdminView,
   })
 
