@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Plus, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
+import { Plus, CheckCircle, XCircle, AlertTriangle, Trash2 } from 'lucide-react'
 import { correctionService, type AttendanceCorrection } from '@/services/leave-correction.service'
 import { formatTime, formatDate } from '@/lib/utils'
 import { invalidateAttendanceQueries } from '@/lib/queryInvalidation'
@@ -26,6 +26,7 @@ export default function CorrectionPage() {
   const [form, setForm] = useState({ date: '', check_in_time: '', check_out_time: '', reason: '' })
   const [rejectModal, setRejectModal] = useState<{ open: boolean; id: number | null }>({ open: false, id: null })
   const [rejectNote, setRejectNote] = useState('')
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: number | null }>({ open: false, id: null })
   const [approveModal, setApproveModal] = useState<{ open: boolean; id: number | null; item: AttendanceCorrection | null }>({ open: false, id: null, item: null })
   const [approveData, setApproveData] = useState({ note: '', check_in_time: '', check_out_time: '' })
 
@@ -72,6 +73,16 @@ export default function CorrectionPage() {
       setRejectModal({ open: false, id: null })
       setRejectNote('')
     },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: correctionService.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['corrections'] })
+      toast.success('Pengajuan perbaikan dihapus')
+      setDeleteModal({ open: false, id: null })
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Gagal menghapus perbaikan'),
   })
 
   const openCorrectionForm = (row: RecapRow) => {
@@ -139,16 +150,23 @@ export default function CorrectionPage() {
                     <p className="text-sm text-gray-600 mt-1">{c.reason}</p>
                     {c.admin_note && <p className="text-[11px] uppercase tracking-wider text-gray-500 mt-1">Catatan admin: {c.admin_note}</p>}
                   </div>
-                  {isAdmin && c.status === 'pending' && (
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <Button size="sm" onClick={() => { setApproveModal({ open: true, id: c.id, item: c }); setApproveData({ note: '', check_in_time: c.check_in_time || '', check_out_time: c.check_out_time || '' }) }}>
-                        <CheckCircle size={14} className="mr-1" /> Setuju
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {isAdmin && c.status === 'pending' && (
+                      <>
+                        <Button size="sm" onClick={() => { setApproveModal({ open: true, id: c.id, item: c }); setApproveData({ note: '', check_in_time: c.check_in_time || '', check_out_time: c.check_out_time || '' }) }}>
+                          <CheckCircle size={14} className="mr-1" /> Setuju
+                        </Button>
+                        <Button size="sm" variant="danger" onClick={() => setRejectModal({ open: true, id: c.id })}>
+                          <XCircle size={14} className="mr-1" /> Tolak
+                        </Button>
+                      </>
+                    )}
+                    {(isAdmin || c.employee_id === user?.employee_id) && c.status === 'pending' && (
+                      <Button size="sm" variant="ghost" onClick={() => setDeleteModal({ open: true, id: c.id })}>
+                        <Trash2 size={14} className="text-red-500" />
                       </Button>
-                      <Button size="sm" variant="danger" onClick={() => setRejectModal({ open: true, id: c.id })}>
-                        <XCircle size={14} className="mr-1" /> Tolak
-                      </Button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -249,6 +267,17 @@ export default function CorrectionPage() {
             <Button variant="outline" onClick={() => setRejectModal({ open: false, id: null })}>Batal</Button>
             <Button variant="danger" loading={rejectMutation.isPending}
               onClick={() => rejectModal.id && rejectMutation.mutate({ id: rejectModal.id, note: rejectNote })}>Tolak</Button>
+          </div>
+        </div>
+      </Modal>
+    {/* Delete Confirm Modal */}
+      <Modal open={deleteModal.open} onClose={() => setDeleteModal({ open: false, id: null })} title="Hapus Perbaikan">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">Yakin ingin menghapus pengajuan perbaikan ini? Tindakan ini tidak dapat dibatalkan.</p>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setDeleteModal({ open: false, id: null })}>Batal</Button>
+            <Button variant="danger" loading={deleteMutation.isPending}
+              onClick={() => deleteModal.id && deleteMutation.mutate(deleteModal.id)}>Hapus</Button>
           </div>
         </div>
       </Modal>

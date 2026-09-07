@@ -137,7 +137,7 @@ export default function LocationThumbnail({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 z-40 flex items-center justify-center" onClick={() => setOpen(false)}>
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" />
           <div className="relative z-10 w-[90vw] max-w-xl bg-white rounded-xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
@@ -149,7 +149,7 @@ export default function LocationThumbnail({
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
               </button>
             </div>
-            <div ref={mapRef} className="w-full h-[300px]" />
+            <div ref={mapRef} className="w-full h-[300px] relative z-0 isolate" />
             <div className="flex flex-wrap gap-2 px-4 py-3 border-t border-gray-200 bg-gray-50 text-xs">
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-50 text-blue-700">
                 <Navigation size={12} /> Jarak: {distText ?? '-'}
@@ -196,5 +196,5 @@ function MiniMap({ userLat, userLng }: { userLat: number; userLng: number }) {
     }
   }, [userLat, userLng])
 
-  return <div ref={ref} className="w-full h-full" />
+  return <div ref={ref} className="w-full h-full relative z-0 isolate" />
 }

@@ -96,6 +96,9 @@ export const correctionService = {
     const { data } = await api.post<ApiResponse<AttendanceCorrection>>(`/corrections/${id}/reject`, { admin_note })
     return data.data
   },
+  delete: async (id: number) => {
+    await api.delete(`/corrections/${id}`)
+  },
 }
 
 export const exportService = {
