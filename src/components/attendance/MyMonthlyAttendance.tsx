@@ -88,14 +88,7 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
 
   const selfQuery = useQuery({
     queryKey: ['my-attendance-recap', year, month],
-    queryFn: () => {
-      const lastDay = new Date(year, month, 0).getDate()
-      return attendanceService.getHistory({
-        start_date: `${year}-${pad(month)}-01`,
-        end_date: `${year}-${pad(month)}-${pad(lastDay)}`,
-        per_page: 100,
-      })
-    },
+    queryFn: () => attendanceService.getAll({ month, year, page: 1, per_page: 100 }),
     staleTime: 0,
     refetchInterval: 30000,
     refetchOnWindowFocus: true,
