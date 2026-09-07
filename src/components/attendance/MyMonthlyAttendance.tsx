@@ -56,6 +56,17 @@ function getCheckoutBadge(status?: string) {
 
 const emptyCell = <span className="text-red-500 font-medium">-</span>
 
+function toDateKey(v?: string | null): string | null {
+  if (!v) return null
+  try {
+    const d = new Date(v.replace(/\.\d+Z$/, 'Z').replace(/\.\d+/, ''))
+    if (isNaN(d.getTime())) return null
+    return d.toLocaleDateString('sv-SE')
+  } catch {
+    return null
+  }
+}
+
 export interface RecapRow {
   date: string
   dateLabel: string
@@ -137,7 +148,7 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
 
   const submitEdit = () => {
     if (!editModal.item) return
-    const date = (editModal.item.check_in_time || editModal.item.check_out_time || '').slice(0, 10)
+    const date = toDateKey(editModal.item.check_in_time || editModal.item.check_out_time) || ''
     const payload: { check_in_time?: string; check_out_time?: string } = {}
     if (editData.check_in_time) payload.check_in_time = `${date}T${editData.check_in_time}`
     if (editData.check_out_time) payload.check_out_time = `${date}T${editData.check_out_time}`
@@ -170,7 +181,7 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
           },
         }]
       : []),
-    { key: 'date', header: 'Tanggal', render: (r: any) => r.dateLabel },
+    { key: 'date', header: 'Tanggal', render: (r: any) => r.dateLabel || toDateKey(r.check_in_time || r.check_out_time) || '-' },
     {
       key: 'checkin_photo',
       header: 'Check In',
@@ -265,7 +276,7 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
         )
       },
     },
-    { key: 'status', header: 'Status', render: (r: any) => getStatusBadge(r.status) },
+    { key: 'status', header: 'Status', render: (r: any) => getStatusBadge(r.status || r.attendance_status) },
     {
       key: 'status_checkout',
       header: 'Status Pulang',
@@ -356,7 +367,7 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
                   <div className="flex justify-between">
                     <span className="text-gray-500">Tanggal</span>
                     <span className="font-medium text-gray-900">
-                      {(editModal.item.check_in_time || editModal.item.check_out_time || '').slice(0, 10)}
+                      {toDateKey(editModal.item.check_in_time || editModal.item.check_out_time) || '-'}
                     </span>
                   </div>
                 </div>
@@ -388,7 +399,7 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
                   <div className="flex justify-between">
                     <span className="text-gray-500">Tanggal</span>
                     <span className="font-medium text-gray-900">
-                      {(deleteModal.item.check_in_time || deleteModal.item.check_out_time || '').slice(0, 10)}
+                      {toDateKey(deleteModal.item.check_in_time || deleteModal.item.check_out_time) || '-'}
                     </span>
                   </div>
                 </div>
@@ -413,7 +424,7 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
     const dow = new Date(date).getDay()
     if (dow === 0) return null
     const recs = items.filter(
-      (a: Attendance) => a.check_in_time?.slice(0, 10) === date || a.check_out_time?.slice(0, 10) === date
+      (a: Attendance) => toDateKey(a.check_in_time) === date || toDateKey(a.check_out_time) === date
     )
     const record = recs.find((r: Attendance) => r.attendance_status !== 'Libur') || recs[0]
     if (record?.attendance_status === 'Libur') return null
