@@ -2,7 +2,7 @@ import { Outlet, Navigate, Link, useLocation, useNavigate } from 'react-router-d
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useLogout, useProfile } from '@/hooks/useAuth'
 import { useAttendanceReminder } from '@/hooks/useAttendanceReminder'
-import { LogOut, LayoutDashboard, Users, Building2, Briefcase, Clock, MapPin, CalendarCheck, Bell, Menu, X, UserCog, FileText, AlertTriangle, Download, Camera, AlertCircle, CalendarOff } from 'lucide-react'
+import { LogOut, LayoutDashboard, Users, Building2, Briefcase, Clock, MapPin, CalendarCheck, Bell, Menu, X, UserCog, FileText, AlertTriangle, Download, Camera, AlertCircle, CalendarOff, Mail } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
@@ -24,6 +24,7 @@ const sidebarItems: SidebarItem[] = [
   { label: 'Update Wajah', icon: Camera, href: '/face-update-requests', roles: ['Administrator', 'Pimpinan', 'Guru', 'Karyawan'] },
   { divider: true, label: ' MANAJEMEN', roles: ['Administrator'] },
   { label: 'Export Laporan', icon: Download, href: '/export', roles: ['Administrator', 'Pimpinan'] },
+  { label: 'Kirim Email', icon: Mail, href: '/send-email', roles: ['Administrator', 'Pimpinan'] },
   { label: 'Karyawan', icon: Users, href: '/employees', roles: ['Administrator'] },
   { label: 'Departemen', icon: Building2, href: '/departments', roles: ['Administrator'] },
   { label: 'Jabatan', icon: Briefcase, href: '/positions', roles: ['Administrator'] },
