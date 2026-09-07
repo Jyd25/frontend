@@ -95,10 +95,11 @@ export default function CorrectionPage() {
   }
 
   const renderCorrectionAction = (row: RecapRow) => {
+    const complete = !!row.record && !!row.record.check_in_time && !!row.record.check_out_time
     return (
-      <Button size="sm" variant={row.noRecord || row.incomplete ? 'primary' : 'outline'}
+      <Button size="sm" variant={row.noRecord || row.incomplete ? 'primary' : 'outline'} disabled={complete}
         onClick={() => openCorrectionForm(row)}>
-        Perbaiki
+        Ajukan Perbaikan
       </Button>
     )
   }
