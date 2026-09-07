@@ -35,6 +35,7 @@ export default function LeavePage() {
     queryKey: ['leaves', page, statusFilter],
     queryFn: () => leaveService.getAll({ page, per_page: 15, ...(statusFilter && { status: statusFilter }) }),
     staleTime: 10000,
+    refetchInterval: 30000,
   })
 
   const createMutation = useMutation({

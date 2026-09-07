@@ -97,6 +97,7 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
       })
     },
     staleTime: 10000,
+    refetchInterval: 30000,
     enabled: !isAdminView,
   })
 
@@ -104,6 +105,7 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
     queryKey: ['admin-attendance-recap', page, month, year],
     queryFn: () => attendanceService.getAll({ month, year, page, per_page: 50 }),
     staleTime: 10000,
+    refetchInterval: 30000,
     enabled: isAdminView,
   })
 

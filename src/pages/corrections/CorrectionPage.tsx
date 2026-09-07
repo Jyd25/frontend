@@ -36,6 +36,7 @@ export default function CorrectionPage() {
     queryKey: ['corrections', page, statusFilter],
     queryFn: () => correctionService.getAll({ page, per_page: 15, ...(statusFilter && { status: statusFilter }) }),
     staleTime: 10000,
+    refetchInterval: 30000,
   })
 
   const createMutation = useMutation({
