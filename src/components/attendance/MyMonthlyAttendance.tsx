@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Pencil, MapPin } from 'lucide-react'
+import { Pencil, Trash2, MapPin } from 'lucide-react'
 import { attendanceService } from '@/services/attendance.service'
 import type { Attendance } from '@/types/api'
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -82,6 +82,7 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
   const [page, setPage] = useState(1)
   const [editModal, setEditModal] = useState<{ open: boolean; item: Attendance | null }>({ open: false, item: null })
   const [editData, setEditData] = useState({ check_in_time: '', check_out_time: '' })
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; item: Attendance | null }>({ open: false, item: null })
 
   const pad = (n: number) => String(n).padStart(2, '0')
 
@@ -125,6 +126,17 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
     })
     setEditModal({ open: true, item })
   }
+
+  const deleteMutation = useMutation({
+    mutationFn: attendanceService.delete,
+    onSuccess: () => {
+      invalidateAttendanceQueries(queryClient)
+      queryClient.invalidateQueries({ queryKey: ['admin-attendance-recap'] })
+      toast.success('Data kehadiran berhasil dihapus')
+      setDeleteModal({ open: false, item: null })
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Gagal menghapus data'),
+  })
 
   const submitEdit = () => {
     if (!editModal.item) return
@@ -301,9 +313,14 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
         header: 'Aksi',
         className: 'text-right',
         render: (a: Attendance) => (
-          <Button size="sm" variant="outline" onClick={() => openEditModal(a)}>
-            <Pencil size={13} className="mr-1" /> Edit
-          </Button>
+          <div className="flex items-center justify-end gap-2">
+            <Button size="sm" variant="outline" onClick={() => openEditModal(a)}>
+              <Pencil size={13} className="mr-1" /> Edit
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setDeleteModal({ open: true, item: a })}>
+              <Trash2 size={14} className="text-red-500" />
+            </Button>
+          </div>
         ),
       },
     ]
@@ -361,10 +378,36 @@ export default function MyMonthlyAttendance({ renderAction }: Props) {
             )}
           </div>
         </Modal>
+
+        <Modal open={deleteModal.open} onClose={() => setDeleteModal({ open: false, item: null })} title="Hapus Data Kehadiran">
+          <div className="space-y-4">
+            {deleteModal.item && (
+              <>
+                <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Karyawan</span>
+                    <span className="font-medium text-gray-900">{deleteModal.item.employee?.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Tanggal</span>
+                    <span className="font-medium text-gray-900">
+                      {(deleteModal.item.check_in_time || deleteModal.item.check_out_time || '').slice(0, 10)}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600">Yakin ingin menghapus data kehadiran ini? Tindakan ini tidak dapat dibatalkan.</p>
+                <div className="flex justify-end gap-3">
+                  <Button variant="outline" onClick={() => setDeleteModal({ open: false, item: null })}>Batal</Button>
+                  <Button variant="danger" loading={deleteMutation.isPending}
+                    onClick={() => deleteModal.item && deleteMutation.mutate(deleteModal.item.id)}>Hapus</Button>
+                </div>
+              </>
+            )}
+          </div>
+        </Modal>
       </div>
     )
   }
-
   const lastDay = new Date(year, month, 0).getDate()
 
   const rows: RecapRow[] = Array.from({ length: lastDay }, (_, i) => {

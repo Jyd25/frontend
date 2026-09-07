@@ -60,4 +60,7 @@ export const attendanceService = {
     const { data } = await api.put<ApiResponse<Attendance>>(`/attendances/${id}`, payload)
     return data.data
   },
+  delete: async (id: number) => {
+    await api.delete(`/attendances/${id}`)
+  },
 }
