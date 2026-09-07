@@ -20,6 +20,8 @@ export default function CorrectionPage() {
   const queryClient = useQueryClient()
   const user = useAuthStore((s) => s.user)
   const isAdmin = user?.role?.name === 'Administrator'
+  const isPimpinan = user?.role?.name === 'Pimpinan'
+  const canManage = isAdmin || isPimpinan
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('')
   const [showForm, setShowForm] = useState(false)
@@ -161,7 +163,7 @@ export default function CorrectionPage() {
                         </Button>
                       </>
                     )}
-                    {(isAdmin || c.employee_id === user?.employee_id) && c.status === 'pending' && (
+                    {canManage && c.status === 'pending' && (
                       <Button size="sm" variant="ghost" onClick={() => setDeleteModal({ open: true, id: c.id })}>
                         <Trash2 size={14} className="text-red-500" />
                       </Button>
