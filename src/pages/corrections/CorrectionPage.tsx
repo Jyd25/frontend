@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Plus, CheckCircle, XCircle, AlertTriangle, Trash2 } from 'lucide-react'
-import { correctionService, type AttendanceCorrection } from '@/services/leave-correction.service'
+import { correctionService, leaveService, type AttendanceCorrection } from '@/services/leave-correction.service'
 import { formatTime, formatDate } from '@/lib/utils'
 import { invalidateAttendanceQueries } from '@/lib/queryInvalidation'
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -39,6 +39,28 @@ export default function CorrectionPage() {
     refetchInterval: 30000,
     refetchOnWindowFocus: true,
   })
+
+  const { data: leavesData } = useQuery({
+    queryKey: ['correction-leaves'],
+    queryFn: () => leaveService.getAll({ per_page: 100 }),
+    staleTime: 0,
+    refetchInterval: 30000,
+    refetchOnWindowFocus: true,
+    enabled: !isAdmin,
+  })
+
+  const leaveDates = useMemo(() => {
+    const set = new Set<string>()
+    for (const l of leavesData?.data?.items || []) {
+      if (l.status === 'rejected') continue
+      const start = new Date(l.start_date)
+      const end = new Date(l.end_date)
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        set.add(d.toISOString().slice(0, 10))
+      }
+    }
+    return set
+  }, [leavesData])
 
   const createMutation = useMutation({
     mutationFn: correctionService.create,
@@ -95,6 +117,10 @@ export default function CorrectionPage() {
   }
 
   const renderCorrectionAction = (row: RecapRow) => {
+    const leaveStatus = ['Izin', 'Sakit', 'Cuti'].includes(row.status || '')
+    if (leaveStatus || leaveDates.has(row.date)) {
+      return <span className="text-xs text-gray-300">-</span>
+    }
     const complete = !!row.record && !!row.record.check_in_time && !!row.record.check_out_time
     return (
       <Button size="sm" variant={row.noRecord || row.incomplete ? 'primary' : 'outline'} disabled={complete}
